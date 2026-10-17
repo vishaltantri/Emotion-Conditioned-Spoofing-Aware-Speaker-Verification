@@ -1,0 +1,50 @@
+# Template for a real evaluation. Fill in the split names used by your manifest,
+# confirm dataset licences, and lock the protocol (docs/PROTOCOL.md) before
+# looking at test metrics. Test-set tuning invalidates the result.
+seed: 7
+
+splits:
+  train: train     # fusion fitting
+  dev: dev         # threshold selection and model selection
+  test: test       # reported once
+
+models:
+  - speaker_only
+  - linear
+  - emotion_additive
+  - emotion_interaction
+  - emotion_gated
+
+training:
+  l2: 0.003
+  max_iter: 3000
+  use_uncertainty: true
+  gated:
+    hidden: 4
+    lr: 0.03
+    epochs: 2500
+    patience: 300
+    validation_fraction: 0.15
+    early_stopping: true
+
+# Choose the operating point *before* evaluation. `target_far` is closer to a
+# deployment constraint; `eer` is the conventional reporting point.
+threshold:
+  policy: eer
+  far_target: 0.01
+
+metrics:
+  tdcf_version: "2021"
+
+bootstrap:
+  n_resamples: 1000
+  seed: 7
+  level: 0.95
+
+report:
+  breakdown_by: [emotion, attack]
+  baseline_model: linear
+
+provenance:
+  kind: real
+  note: "TODO: record dataset versions, licences, and how emotion labels were obtained."

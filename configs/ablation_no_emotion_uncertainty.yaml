@@ -1,0 +1,14 @@
+# Ablation overlay: emotion *point* predictions only, no entropy/confidence
+# features. Tests whether any gain depends on uncertainty handling.
+#
+# Partial configs are layered on a base config, left to right:
+#   easv evaluate --config configs/demo.yaml \
+#                 --config configs/ablation_no_emotion_uncertainty.yaml \
+#                 --manifest ... --scores ... --out results/abl_no_uncertainty
+training:
+  use_uncertainty: false
+
+models:
+  - linear
+  - emotion_additive
+  - emotion_gated

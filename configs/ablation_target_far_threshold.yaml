@@ -1,0 +1,14 @@
+# Ablation overlay: security-budget operating point. The threshold is chosen on
+# dev as the most permissive value whose false-accept rate stays within the
+# budget; false rejection is then reported on test.
+#
+# Layer it on a base config:
+#   easv evaluate --config configs/demo.yaml \
+#                 --config configs/ablation_target_far_threshold.yaml \
+#                 --manifest ... --scores ... --out results/abl_far
+threshold:
+  policy: target_far
+  far_target: 0.01
+
+report:
+  breakdown_by: [emotion, attack]
