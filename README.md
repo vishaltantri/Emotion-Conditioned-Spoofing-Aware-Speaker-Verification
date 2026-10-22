@@ -147,7 +147,8 @@ easv manifest-template --out data_manifests/example.csv
 | `configs/` | demo, real-data template, and ablation configurations |
 | `data_manifests/` | manifest/schema documentation; real manifests are kept out of version control |
 | `results/` | generated reports, per-trial scores and fitted models (git-ignored except `README.md`) |
-| `docs/` | implementation plan, protocol, novelty gate, progress log, remaining-work plan |
+| `docs/` | implementation plan, protocol, novelty gate, progress log, real results, remaining-work plan |
+| `scripts/` | manifest builders, ASV/SER/CM score producers, score combiner, in-domain CM trainer, `run_real_pipeline.sh` (end-to-end entry point) |
 | `paper/`, `figures/` | placeholders for the manuscript and figures |
 
 ## What is implemented vs not
@@ -208,6 +209,22 @@ Not implemented (deliberately, see the plan's novelty gate):
   1.8 GB — disk, not code, is the blocker);
 * [ ] AASIST CM training ([scripts/EASIST_LA.conf](scripts/EASIST_LA.conf)) once LA audio lands;
 * [ ] fusion evaluation on real scores (needs the CM scores above).
+
+## Reproducing the real run
+
+```bash
+# corpora must exist: $DATA_ROOT/esd (ESD English) and $DATA_ROOT/emospoof
+DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh
+
+# same, but scored by the bundled LA-trained AASIST checkpoint
+DATA_ROOT=/home/vct/data/easv CM=aasist OUT=results/real/run_oodcm \
+    bash scripts/run_real_pipeline.sh
+```
+
+Seven resumable stages: manifests → audit (hard stop on errors) → ASV → SER → CM
+→ score combination → fusion evaluation and ASV summary. Results land in
+`results/real/<run>/results.md`; measured numbers and caveats are summarised in
+[docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 
 ## Research-integrity rules encoded in the code
 
