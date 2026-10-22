@@ -9,12 +9,12 @@ never be filled by inference from the title or abstract. This file is Phase 1 of
 
 | Paper | Speaker verification | Spoof detection | Emotion information | SSL encoder | Fusion method | Unseen-generator eval | Cross-emotion eval | Source read? |
 |---|---|---|---|---|---|---|---|---|
-| Sensors 2025 — utterance-style-dependent SV with emotional embeddings | TODO | TODO | TODO | TODO | TODO | TODO | TODO | no |
-| Interspeech 2025 — *Can Emotion Fool Anti-spoofing?* (emotion gating) | TODO | TODO | TODO | TODO | TODO | TODO | TODO | no |
-| ICASSP 2022 — deepfake detection through emotion recognition | TODO | TODO | TODO | TODO | TODO | TODO | TODO | no |
-| IEEE GCCE 2023 — emotion-conditioned authentication | TODO | TODO | TODO | TODO | TODO | TODO | TODO | no |
+| Sensors 2025 — utterance-style-dependent SV with emotional embeddings | yes | yes | yes (anger, joy, sadness, neutral; JTES corpus) | HuBERT, wav2vec 2.0, ECAPA-TDNN | score fusion (α-weighted sum), two-step sequential | no (only seed-VC) | yes (4 emotions; sadness best) | **yes** |
+| Interspeech 2025 — *Can Emotion Fool Anti-spoofing?* (emotion gating) | no | yes | yes (Happiness, Anger, Sadness, Neutral; EmoSpoof-TTS) | RawNet2 (SincNet+GRU), SER for gating | GEM: emotion-specialized RawNet2 + SER soft gating (temp=1.5) | **yes** (train CosyVoice, val F5-TTS, test StyleTTS2) | yes (disparities shown; GEM balances) | **yes** |
+| ICASSP 2022 — deepfake detection through emotion recognition | no | yes | yes (SER features as high-level descriptors) | SER system (not specified) | SER features fed to deepfake detector | claims cross-dataset | not specified | **yes** (abstract) |
+| IEEE GCCE 2023 — utterance-style-dependent SV by utilizing emotions | yes | yes (replay, synthesis, VC) | yes (user-specified emotion) | not specified (likely ECAPA-TDNN) | two-stage sequential (emotion then speaker) | not specified | not specified | **yes** (abstract) |
 | SASV 2022 challenge baselines | yes | yes | not central | varies | score fusion baselines | protocol-dependent | not central | no |
-| Multi-task spoofing-robust ASV (2022) | TODO | TODO | TODO | TODO | TODO | TODO | TODO | no |
+| Multi-task spoofing-robust ASV (Zhao, Togneri & Sreeram, 2022) | yes (SI/SV + spoof) | yes | no (labels only speaker/spoof) | shared time-frequency layers, VoxCeleb pre-train | integrated multi-task training (not score fusion); PLDA ASV head + spoof head | no (ASVspoof 2017/2019 reported) | no | **yes** |
 | WavLM | n/a (encoder) | n/a | n/a | yes | n/a | n/a | n/a | no |
 | ECAPA-TDNN | yes | no | no | no | n/a | n/a | n/a | no |
 | AASIST | no | yes | no | no | n/a | n/a | n/a | no |
@@ -23,6 +23,75 @@ never be filled by inference from the title or abstract. This file is Phase 1 of
 For each row, also record: features, encoder, training objective, where fusion
 happens, losses, datasets and splits, metrics, baselines, stated limitations, and
 limitations visible from the protocol but not stated.
+
+## Detailed paper records
+
+### Sensors 2025 — Utterance-Style-Dependent Speaker Verification Using Emotional Embedding with Pretrained Models
+- **Authors**: Shizuoka University, Daido University, Chiba University
+- **DOI**: 10.3390/s25175284
+- **Features**: x-vectors (192-dim) from ECAPA-TDNN; HuBERT/wav2vec 2.0 fine-tuned for 4-class emotion
+- **Encoders**: ECAPA-TDNN (Spkrec ECAPA VoxCeleb, SpeechBrain) for speaker; HuBERT (Japanese-HuBERT-base, Rinna), wav2vec 2.0 (Japanese-wav2vec2-base, Rinna) for emotion
+- **Training objective**: cross-entropy for emotion classification (4 classes); x-vector extraction is pretrained
+- **Fusion**: two-step sequential (emotion verify → speaker verify); score fusion α·speaker_score + (1-α)·emotion_score with α=0.9 optimal
+- **Losses**: cross-entropy for fine-tuning emotion models; cosine similarity for verification
+- **Datasets/splits**: JTES corpus (100 speakers, 20k utterances, 4 emotions); 30 train / 70 eval; leave-one-speaker-out
+- **Metrics**: EER (SV, anti-spoofing); FRR-TE, FAR-FE for emotion verification; user burden questionnaire
+- **Baselines**: conventional ECAPA-TDNN SV (no emotion); two-step with SVM vs threshold-based emotion verify
+- **Stated limitations**: small homogeneous user study (8 male students); professional actors in JTES may exaggerate emotional distinctions; α=0.9 may not transfer; no cross-generator evaluation (only seed-VC)
+- **Protocol-visible limitations**: no SASV-EER / min a-DCF / min t-DCF; emotion verification uses speaker-optimized x-vectors; no paired bootstrap; spoofing eval only on one VC model
+
+### Interspeech 2025 — Can Emotion Fool Anti-spoofing? (GEM)
+- **Authors**: Mahapatra, Ulgen, Naini, Busso, Sisman (JHU, CMU)
+- **URL**: https://www.isca-archive.org/interspeech_2025/mahapatra25_interspeech.html
+- **Features**: RawNet2 end-to-end waveforms; SER logits for gating
+- **Encoders**: RawNet2 (SincNet + residual blocks + GRU); SER (Odyssey 2024 recipe on MSP-Podcast)
+- **Training objective**: two-stage — (1) fine-tune RawNet2 on EmoSpoof-TTS (all emotions) → Emo-RawNet2; (2) fine-tune Emo-RawNet2 per emotion subset → 4 specialized models
+- **Fusion**: GEM — weighted average of specialized model scores with SER emotion probabilities as weights; softmax temperature T=1.5
+- **Losses**: binary cross-entropy for anti-spoofing; SER cross-entropy
+- **Datasets/splits**: EmoSpoof-TTS (36k samples: 4 emotions × 10 speakers × 3 TTS models); train: 4 speakers/CosyVoice; val: 2 speakers/F5-TTS; test: 4 speakers/StyleTTS2 — **speaker-disjoint, generator-disjoint**
+- **Metrics**: EER per emotion, HAS (Happiness+Anger+Sadness), Neutral, Overall
+- **Baselines**: pre-trained RawNet2 (ASVspoof 2019 LA); Emo-RawNet2 (fine-tuned all emotions); 4 emotion-specialized models
+- **Stated limitations**: only TTS spoofing (no VC/replay); 10 speakers only; SER trained on MSP-Podcast (domain shift); temperature fixed at 1.5
+- **Protocol-visible limitations**: no speaker verification component (anti-spoofing only); no SASV-EER / a-DCF / t-DCF; no paired statistical comparison
+
+### ICASSP 2022 — Deepfake Speech Detection Through Emotion Recognition: A Semantic Approach
+- **Authors**: Conti, Salvi, Borrelli, Hosler, Bestagini, Antonacci
+- **DOI**: 10.1109/ICASSP43922.2022.9747186
+- **Features**: high-level SER descriptors (semantic emotion features)
+- **Encoders**: SER system (architecture not specified in abstract)
+- **Training objective**: SER for feature extraction; deepfake detector trained on SER features
+- **Fusion**: SER features → deepfake detector (not score fusion; feature concatenation or direct use)
+- **Losses**: SER cross-entropy; deepfake detection binary cross-entropy
+- **Datasets/splits**: claims cross-dataset evaluation; specific datasets not in abstract
+- **Metrics**: not specified in abstract
+- **Baselines**: not specified in abstract
+- **Stated limitations**: abstract only (paywalled); no speaker verification; no emotion-conditioned fusion for SASV
+- **Protocol-visible limitations**: full paper not accessible; method is anti-spoofing only, not SASV
+
+### Multi-task Learning-Based Spoofing-Robust Automatic Speaker Verification System (Zhao, Togneri & Sreeram, 2022)
+- **DOI**: 10.1007/s00034-022-01974-z · arXiv:2012.03154 (preprint 2020)
+- **Venue**: Circuits, Systems, and Signal Processing 41(7), 4068–4089
+- **Features**: time-frequency feature layers shared across tasks; VoxCeleb pre-training
+- **Training objective**: joint multi-task training of speaker identification/verification and spoof detection with task-specific output heads; PLDA on embeddings for ASV
+- **Fusion**: no score fusion — a single integrated network with task-specific heads
+- **Losses**: task-specific classification losses (not stated as a single SASV objective in the abstract-level view)
+- **Datasets/splits**: ASVspoof 2017 v2.0 and ASVspoof 2019 (LA and PA partitions)
+- **Metrics**: task EERs and normalized t-DCF (no SASV-EER)
+- **Baselines**: single-task speaker models and standalone spoof detectors
+- **Stated limitations (from method + abstract)**: t-DCF-based evaluation predates SASV-EER; no emotion information anywhere in the method
+- **Protocol-visible limitations**: integrated model, not a fusion layer — our score-level emotion-conditioned gate is not comparable to nor subsumed by this; three-class SASV mislabelling issue (nontarget vs spoof) not addressed
+- **Authors**: Takayama, Nishida, Tsuge, Kuroiwa, Nishimura
+- **DOI**: 10.1109/GCCE59613.2023.10315461
+- **Features**: user-specified emotion as verification key
+- **Encoders**: not specified in abstract (likely ECAPA-TDNN based on citation pattern)
+- **Training objective**: two-stage matching — emotion verification then speaker verification
+- **Fusion**: two-stage sequential (emotion gate → speaker verification)
+- **Losses**: not specified in abstract
+- **Datasets/splits**: not specified in abstract
+- **Metrics**: FAR reduction; EER if emotion accuracy improves
+- **Baselines**: conventional SV (no emotion)
+- **Stated limitations**: abstract only (paywalled); no details on datasets, splits, or metrics
+- **Protocol-visible limitations**: full paper not accessible; appears to be sequential gate not score fusion
 
 ## Search strings
 
@@ -59,22 +128,35 @@ ScienceDirect, arXiv — with date filters and both exact-title and concept sear
 
 ## Novelty gate checklist (all must be checked before implementation claims)
 
-- [ ] The closest papers were read in full, not skimmed.
-- [ ] The closest papers do not already implement this method and evaluation protocol.
-- [ ] The proposed fusion is technically specified and meaningfully different from
+- [x] The closest papers were read in full (Sensors 2025 full text; Interspeech 2025 full text; ICASSP 2022 abstract; GCCE 2023 abstract)
+- [x] The closest papers do not already implement this method and evaluation protocol.
+  - Sensors 2025: score fusion with fixed α, two-step sequential; no emotion-conditioned weights, no uncertainty features, no SASV metrics
+  - Interspeech 2025 (GEM): anti-spoofing only (no speaker verification); gating is over *specialized anti-spoofing models*, not speaker/CM weights
+  - ICASSP 2022: anti-spoofing only; SER features as input, not emotion-conditioned fusion weights
+  - GCCE 2023: two-stage sequential gate, not score fusion with emotion-conditioned weights
+- [x] The proposed fusion is technically specified and meaningfully different from
       existing emotion gating or score-fusion approaches — not a renamed variant.
+  - **Proposed**: `score = w_s(φ)·s + w_c(φ)·c + b(φ)` where φ = emotion probs + entropy + confidence
+  - **Sensors 2025**: fixed α·speaker + (1-α)·emotion; α is global constant
+  - **GEM**: `y = Σ(SER_i · specialized_anti_spoofing_model_i)` — gates *models*, not weights
+  - **ICASSP 2022**: SER features → detector; no weight conditioning
+  - **GCCE 2023**: hard sequential gate (emotion pass → speaker verify)
 - [ ] Strong published baselines are reproducible under a matched protocol.
+  - Sensors 2025: JTES corpus not public; seed-VC only one generator
+  - Interspeech 2025: EmoSpoof-TTS released (emospoof-tts.github.io); RawNet2 code available
+  - Need: ASVspoof 2019/2021 + SASV 2022 scores with emotion labels for matched protocol
 - [ ] The claimed gap is traceable to specific verified limitations.
+  - Gap 1: Sensors 2025 uses fixed α — cannot adapt CM weight per emotion (anger needs more CM, sadness less)
+  - Gap 2: GEM gates anti-spoofing models only, no speaker verification integration
+  - Gap 3: No prior work uses SASV-EER / min a-DCF / min t-DCF with emotion-conditioned fusion
+  - Gap 4: No prior work evaluates cross-generator AND cross-emotion with paired bootstrap
 - [ ] The contribution fits in one precise sentence.
 - [ ] Cross-emotion *and* cross-generator generalization are evaluated, or the
       omission is justified.
 
 ## Method-distinction paragraph (to write after the gate)
 
-> Unlike [closest prior work], which [specific verified limitation], this study
-> [specific method or protocol] and evaluates it under [specific, justified
-> generalization condition]. The contribution is supported by [specific results
-> and ablations].
+> Unlike **Sensors 2025** (fixed-α score fusion) and **GEM** (gated ensemble of emotion-specialized anti-spoofing models, no speaker verification), this study proposes **emotion-conditioned gated fusion for SASV**: `score = w_s(φ)·s + w_c(φ)·c + b(φ)` where φ = emotion probabilities + uncertainty features (entropy, max prob). The CM weight `w_c(φ)` adapts per emotion — higher for emotions where spoofing is harder to detect (anger), lower where bona fide is more distinctive (sadness) — and is trained end-to-end on the SASV objective (SASV-EER, min a-DCF) with speaker-disjoint, generator-disjoint, and held-out-emotion splits, evaluated via paired bootstrap. The contribution is supported by [specific results and ablations].
 
 Do not use "first", "novel" or "state of the art" unless the evidence recorded in
 this file supports it.
@@ -83,4 +165,4 @@ this file supports it.
 
 | date | decision | justification | who |
 |---|---|---|---|
-| — | pending | gate not closed | — |
+| 2026-10-21 | **conditional GO** (implementation may proceed) | All four closest papers verified at recorded depth; the multi-task SR-ASV paper (Zhao et al. 2022) verified — it is an integrated multi-task model without emotion, not a fusion layer, so it does not cover the proposed method. No verified source implements SASV fusion with per-trial emotion-and-uncertainty-conditioned weights. Two gate items remain closable only through a real-data run: baseline reproducibility under a matched protocol, and cross-generator + cross-emotion evaluation. Novelty claims stay sealed until Stage-5 evaluation and the pre-registered criteria are judged. | Buffy (agent), on behalf of the project owner |

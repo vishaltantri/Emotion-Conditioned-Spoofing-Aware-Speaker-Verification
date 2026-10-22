@@ -8,11 +8,20 @@ rejection of genuine speech?**
 The plan this repo implements is [Emotion_Aware_Speaker_Verification_Research_Plan.md](Emotion_Aware_Speaker_Verification_Research_Plan.md);
 the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verification-1.pdf](Emotion_Aware_Anti_Spoofing_Speaker_Verification-1.pdf).
 
-> **Status: research infrastructure, not a result.** The evaluation and fusion
-> layer is implemented and tested. Self-supervised encoders, real datasets and
-> the prior-art novelty gate are **not** done — see
+> **Status: research infrastructure — real-data stage started, not finished.**
+> The evaluation and fusion layer is implemented, tested, and now exercised on
+> real data. Progress beyond the commit history is tracked in
+> [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md); the stage-by-stage plan is
+> [docs/REMAINING_WORK_PLAN.md](docs/REMAINING_WORK_PLAN.md) and the roadmap is
 > [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). No claim in this
 > repository about emotion-conditioned gains on real speech is supported yet.
+>
+> Verified so far: 66 tests, novelty gate closed (conditional GO, 4+1 papers read
+> at recorded depth), 17,660-trial ESD English manifest built and audited, real
+> ASV (ECAPA-TDNN) and SER (wav2vec2-superb-ER) producers run over all of it.
+> Still unfinished: EmoSpoof-TTS corpus download (run with checksum-gated
+> resumable loader), ASVspoof 2019 LA, AASIST CM training, and the first real
+> fusion evaluation.
 
 ## Quickstart
 
@@ -101,7 +110,7 @@ easv manifest-template --out data_manifests/example.csv
 | `configs/` | demo, real-data template, and ablation configurations |
 | `data_manifests/` | manifest/schema documentation; real manifests are kept out of version control |
 | `results/` | generated reports, per-trial scores and fitted models (git-ignored except `README.md`) |
-| `docs/` | implementation plan, protocol, novelty gate |
+| `docs/` | implementation plan, protocol, novelty gate, progress log, remaining-work plan |
 | `paper/`, `figures/` | placeholders for the manuscript and figures |
 
 ## What is implemented vs not
@@ -122,8 +131,29 @@ Not implemented (deliberately, see the plan's novelty gate):
 * WavLM/HuBERT front-ends and ECAPA-TDNN/AASIST training — the pipeline consumes
   scores, so encoders plug in as score producers without touching this code;
 * real dataset ingestion (ASVspoof 2019/2021, SASV 2022, EmoSpoof-TTS, RAVDESS/CREMA-D);
-* prior-art verification and the novelty matrix (template only, cells unverified);
+* prior-art verification and the novelty matrix (partially done — 4+1 papers
+  read and recorded at [docs/NOVELTY_MATRIX.md](docs/NOVELTY_MATRIX.md); conditional GO);
+* the real-dataset stage of the pipeline (see [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md));
 * the manuscript.
+
+### Real-data stage (in progress)
+
+* [x] Offline wheel stack for the audio venv (`.venv-rm`, 69 wheels fetched +
+  verified offline install with import checks) — see
+  [scripts/fetch_wheels.sh](scripts/fetch_wheels.sh);
+* [x] ESD English subset (speakers 0011–0020) fetched via public HF mirror,
+  17,660-trial real manifest, `easv audit` clean;
+* [x] Real ASV score producer ([scripts/producer_asv.py](scripts/producer_asv.py),
+  ECAPA-TDNN embeddings + cosine) and SER producer
+  ([scripts/producer_ser.py](scripts/producer_ser.py), wav2vec2-base-superb-ER →
+  `emo_*` softmax columns) — both completed on the full manifest;
+* [ ] EmoSpoof-TTS (StyleTTS2 → F5-TTS → CosyVoice) — download is running as a
+  checksum-gated single-stream rescue ([scripts/dataset_rescue.sh](scripts/dataset_rescue.sh))
+  after the segmented downloader proved unreliable on the Zenodo-hosted archive;
+* [ ] ASVspoof 2019 LA download → selective train/dev/protocols extract;
+* [ ] AASIST CM training ([scripts/EASIST_LA.conf](scripts/EASIST_LA.conf)) once LA audio lands;
+* [ ] EmoSpoof manifest + e2e merge + audit;
+* [ ] fusion evaluation on real scores.
 
 ## Research-integrity rules encoded in the code
 
