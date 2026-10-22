@@ -18,11 +18,11 @@ exist so far live in `results/e2e/` and are deliberately uncommitted.
 | ESD manifest built + audited | **done** — `results/e2e/m_esd_real.csv` (17,660 rows), `easv audit` clean |
 | ASV producer (SpeechBrain ECAPA-TDNN embeddings, cosine) | **done on real ESD audio** → `real/scores_asv_esd.csv` |
 | SER producer (wav2vec2-base-superb-ER softmax → emo_* cols) | **done on real ESD audio** → `real/scores_ser_esd.csv` |
-| EmoSpoof-TTS download (StyleTTS2 2.9 GB → F5-TTS 1.1 GB → CosyVoice 2.7 GB) | **2 of 3 landed** — F5-TTS + CosyVoice extracted (12,000 wavs each); StyleTTS2 md5-verified and extracted, directory missing on disk |
+| EmoSpoof-TTS download (StyleTTS2 2.9 GB → F5-TTS 1.1 GB → CosyVoice 2.7 GB) | **2 of 3 landed** — F5-TTS + CosyVoice extracted (12,000 wavs each); StyleTTS2 re-fetch running after the rescue loop deleted its finished tree |
 | EmoSpoof manifest + merged manifest + audit | **done** — 24,000 EmoSpoof rows, 41,900-row merged manifest, `easv audit` 0 errors / 4 warnings |
 | CUDA torch in the audio venv | **done** — `2.14.1+cu130`, `cuda.is_available()` True (RTX 3050 6 GB) |
 | ASV scores on the merged manifest | **running** — `real/scores_asv_merged.csv` |
-| ASVspoof 2019 LA download (7.6 GB, selective train/dev/protocols extract) | **partial** — 6.5/7.6 GB on disk, download resuming; extraction needs ~7.5 GB free, volume has 1.8 GB |
+| ASVspoof 2019 LA download (7.6 GB, selective train/dev/protocols extract) | **blocked** — resumed parts came back mutually inconsistent under ENOSPC and were removed; extraction needs ~7.5 GB free |
 | AASIST CM training | **blocked** — no LA audio, no pretrained checkpoint |
 | Fusion on real scores | **blocked** on CM scores |
 
@@ -134,6 +134,42 @@ then `ImportError: libcufile.so.0`, then `libnvshmem_host.so.3`. Installing
 offline wheel directory resolves it. Also installed `sympy`, `networkx`,
 `filelock`, `jinja2`, `fsspec` for torch's runtime imports.
 
+### First real measurement: ASV vulnerability to emotional clones
+
+`scripts/producer_asv.py` was run over the whole merged manifest (41,900
+trials, `real/scores_asv_merged.csv`, `missing_centroid=0`), and
+`scripts/summarize_real_scores.py` turns those scores into the table below
+(`results/real/asv_summary.{json,md}`; thresholds from dev only):
+
+| split | trials | SV-EER | spoof n | spoof accepted @dev thr | target accepted |
+|---|---:|---:|---:|---:|---:|
+| train | 16,760 | 0.70 % | 9,600 | 71.9 % | 96.1 % |
+| dev | 8,380 | 4.40 % | 4,800 | 72.4 % | 95.6 % |
+| test | 16,760 | 3.12 % | 9,600 | 55.2 % | 82.9 % |
+
+Test-split spoof acceptance by emotion (mean ASV score in brackets): angry
+64.6 % (+0.4705), neutral 61.7 % (+0.4684), sad 47.5 % (+0.4196), happy 47.2 %
+(+0.4120). By generator: CosyVoice 59.0 % (+0.4554), F5-TTS 51.5 % (+0.4298).
+
+Interpretation, stated narrowly: on real ESD/EmoSpoof audio, a standard ECAPA
+speaker front-end accepts more than half of cloned emotional speech as the
+cloned identity, and the acceptance rate is **not** flat across emotions — the
+high-arousal negative class (angry) is the most dangerous and the two positive /
+low-arousal classes are the safest. This is exactly the dependence an
+emotion-conditioned fusion stage is supposed to exploit, and it is measured, not
+assumed. It is **not** a SASV result: without a countermeasure score the
+combined decision cannot be formed, so no claim about fusion gains is made.
+
+### Download failures in this pass
+
+* The ASVspoof 2019 LA download was resumed with `scripts/segdl.sh`; under ENOSPC
+  pressure several parts were re-created from zero and individual part files
+  shrank mid-run, so the 16 parts became mutually inconsistent (4.1 GB of a
+  7.6 GB archive). The parts were removed rather than left as a corrupted
+  archive; LA extraction needs ~7.5 GB free and cannot run on this volume today.
+* Stale partials from the abandoned CosyVoice retry (790 MB) and the leftover
+  `__MACOSX` tree were deleted, which is what raised free space to ~7.8 GB.
+
 ### Disk: the real blocker
 
 The 183 GB root volume is at 99 % with the user's own data (Desktop, Downloads,
@@ -145,6 +181,17 @@ counts against the 7.6 GB total), so AASIST training stays blocked until space i
 released outside this project. ~/.cache/huggingface (2.9 GB, unrelated NLP models),
 ~/.gradle (3.1 GB) and ~/.local/share/Trash (2.1 GB) are the obvious candidates;
 they are the owner's, so they were left untouched.
+
+### Script fixes made while unblocking
+
+* `scripts/dataset_rescue.sh` — the loop deleted `emospoof/StyleTTS2` after *every*
+  archive, so extracting F5-TTS removed the StyleTTS2 tree that had just been
+  produced. That is the whole explanation for the "missing" third generator. The
+  delete is now scoped to the archive being extracted, an already-extracted tree
+  is skipped instead of re-downloaded, and the extraction log line records the
+  wav count. Accepts optional archive names: `dataset_rescue.sh StyleTTS2.zip`.
+* `scripts/summarize_real_scores.py` — new; joins manifest and score files and
+  reports SV-EER plus spoof acceptance by split, emotion and generator.
 
 Recorded by the agent working on the owner's behalf; numbers quoted are read off
 `wc -l` of the manifest/score files above (17661 lines including header) and the

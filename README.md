@@ -23,9 +23,19 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > working CUDA torch stack (`2.14.1+cu130`, RTX 3050 6 GB) built from offline
 > wheels.
 >
-> Still unfinished: the StyleTTS2 generator of EmoSpoof-TTS, ASVspoof 2019 LA
-> extraction (blocked on disk space, not on code), AASIST CM training, and the
-> first real fusion evaluation — the latter two need CM scores, which need LA.
+> **First real measurement.** On the held-out test split the ECAPA SV front-end
+> accepts 82.9 % of bona fide targets but also **55.2 % of EmoSpoof-TTS clones**
+> presented as the cloned speaker, and the rate depends on the emotion: angry
+> 64.6 %, neutral 61.7 %, happy 47.2 %, sad 47.5 % (dev SV-EER 4.40 %, threshold
+> chosen on dev only). Per generator: CosyVoice clones accepted 59.0 %, F5-TTS
+> 51.5 % (see [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md) for the tables). No
+> countermeasure score exists yet, so this is measured ASV vulnerability,
+> **not** a SASV-EER.
+>
+> Still unfinished: the StyleTTS2 generator of EmoSpoof-TTS (re-fetch running),
+> ASVspoof 2019 LA extraction (blocked on disk space, not on code), AASIST CM
+> training, and the first real fusion evaluation — the latter two need CM scores,
+> which need LA.
 >
 > **Stage status at a glance**
 >
@@ -39,7 +49,8 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > | ASV scores on ESD (17,660 trials) | done |
 > | SER scores on ESD (17,660 trials) | done |
 > | ASV scores on the merged (ESD + spoof) manifest | running |
-> | CM (AASIST) scores | blocked — no LA audio, no pretrained checkpoint |
+> | Real ASV summary on the merged manifest | done — [scripts/summarize_real_scores.py](scripts/summarize_real_scores.py), 55.2 % spoof acceptance on test |
+| CM (AASIST) scores | blocked — no LA audio, no pretrained checkpoint |
 > | ASVspoof 2019 LA | download 6.5/7.6 GB; extraction needs ~7.5 GB free, 1.8 GB available |
 > | Real fusion evaluation | blocked on CM scores |
 
@@ -182,7 +193,10 @@ Not implemented (deliberately, see the plan's novelty gate):
   `torch.cuda.is_available()` is `True` on the RTX 3050, after installing the
   NVIDIA runtime wheels (cublas, cudnn, cuda_runtime, nvrtc, nvjitlink, cufft,
   curand, cusolver, cusparse, nccl, nvtx, cupti, cufile, cusparselt, nvshmem);
-* [ ] StyleTTS2 generator re-fetch to complete the three-generator design;
+* [ ] StyleTTS2 generator re-fetch to complete the three-generator design —
+  running; the earlier tree was deleted by the rescue loop's unconditional
+  `rm -rf` after *every* archive, now fixed and guarded by an extracted-tree
+  check;
 * [ ] ASVspoof 2019 LA download → selective train/dev/protocols extract
   (download 6.5/7.6 GB complete; extraction needs ~7.5 GB free and the volume has
   1.8 GB — disk, not code, is the blocker);

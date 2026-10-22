@@ -39,9 +39,24 @@ fetch_md5() {  # KEY -> downloads + md5-verifies one archive
   return 1
 }
 
-for key in StyleTTS2.zip F5TTS.zip CosyVoice.zip; do
+# Optional argv = only those archives (e.g. `dataset_rescue.sh StyleTTS2.zip`).
+if [[ $# -gt 0 ]]; then
+  keys=("$@")
+else
+  keys=(StyleTTS2.zip F5TTS.zip CosyVoice.zip)
+fi
+
+for key in "${keys[@]}"; do
+  tree="$D/emospoof/${key%.zip}"
+  # An already extracted tree must not be re-downloaded nor deleted: earlier
+  # versions removed StyleTTS2 unconditionally after every archive, which wiped
+  # the finished tree while extracting F5TTS.
+  if [[ -n "$(find "$tree" -name '*.wav' -print -quit 2>/dev/null)" ]]; then
+    say "$key already extracted ($(find "$tree" -name '*.wav' | wc -l) wavs); skip"
+    continue
+  fi
   if fetch_md5 "$key"; then
-    rm -rf "$D/emospoof/StyleTTS2" "$D/emospoof/__MACOSX"
+    rm -rf "$tree" "$D/emospoof/__MACOSX"
     say "$key CRC-verifying"
     if timeout 600 "$PY3" "$DIAG" "$D/emospoof/$key" > "$D/emospoof/${key}.diag" 2>&1 \
        && [[ ! -s "$D/emospoof/${key}.diag" ]]; then
@@ -51,7 +66,7 @@ for key in StyleTTS2.zip F5TTS.zip CosyVoice.zip; do
     fi
     if unzip -q -n "$D/emospoof/$key" -d "$D/emospoof/"; then
       rm -f "$D/emospoof/$key"
-      say "$key extracted+removed; disk $(df -BG / | awk 'NR==2{print $4}') free"
+      say "$key extracted ($(find "$tree" -name '*.wav' | wc -l) wavs)+removed; disk $(df -BG / | awk 'NR==2{print $4}') free"
     else
       say "EXTRACT_FAILED $key"; exit 1
     fi
