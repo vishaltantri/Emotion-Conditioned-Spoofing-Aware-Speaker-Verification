@@ -233,6 +233,17 @@ they are the owner's, so they were left untouched.
   wav count. Accepts optional archive names: `dataset_rescue.sh StyleTTS2.zip`.
 * `scripts/summarize_real_scores.py` — new; joins manifest and score files and
   reports SV-EER plus spoof acceptance by split, emotion and generator.
+* `scripts/dataset_rescue.sh` — downloads now resume across attempts
+  (`curl -C -` into a stable `.download` file with stall detection) instead of
+  restarting from zero: Zenodo truncated this 2.9 GB archive twice, at 1.24 GB and
+  at 1.45 GB, so the previous logic could burn an hour and keep nothing. A partial
+  is still deleted whenever the cumulative file fails the md5, because bytes from
+  mixed server replicas can never verify.
+* `scripts/train_cm_indomain.py` — `--holdout-attack` excludes a generator from
+  training and from dev-based early stopping, turning the run into a
+  leave-one-generator-out generalisation test; the held-out EER is computed
+  against the bona fide trials of the same split (an EER inside a spoof-only
+  subset is undefined and raised).
 
 Recorded by the agent working on the owner's behalf; numbers quoted are read off
 `wc -l` of the manifest/score files above (17661 lines including header) and the

@@ -14,26 +14,43 @@ MD5S[CosyVoice.zip]=b4a8257cb6acbba8c99903929b8eaab4
 declare -A SZ=( [StyleTTS2.zip]=2935038030 [F5TTS.zip]=1091810675 [CosyVoice.zip]=2668440599 )
 mkdir -p "$D/emospoof"
 
-fetch_md5() {  # KEY -> downloads + md5-verifies one archive
+fetch_md5() {  # KEY -> downloads + md5-verifies one archive, resuming across cuts
   local key="$1" md5="${MD5S[$key]}" size="${SZ[$key]}"
-  local dest="$D/emospoof/$key" tmp attempts max=6
+  local dest="$D/emospoof/$key" tmp attempts max=8 stalls count
   local url="https://zenodo.org/api/records/15557842/files/$key/content"
-  for attempts in 1 2 3 4 5 6 7 8; do
-    [[ $attempts -gt $max ]] && return 1
-    tmp="$dest.partial$RANDOM"
-    say "fetch $key attempt $attempts (cache-buster query)"
-    curl -sf --max-time 7200 -H "Accept-Encoding: identity" \
-         "$url?rchar=$RANDOM" -o "$tmp" || true
+  # A stable partial name lets `curl -C -` continue where the server cut the
+  # stream: Zenodo has been truncating this 2.9 GB archive mid-transfer, and
+  # restarting from zero each time burned hours without gaining a byte.
+  tmp="$dest.download"
+  for attempts in $(seq 1 $max); do
+    stalls=0
+    while :; do
+      count=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+      if [[ $count -ge $size ]]; then break; fi
+      say "fetch $key attempt $attempts from byte $count (resume)"
+      curl -sf -C - --max-time 3600 -H "Accept-Encoding: identity" \
+           "$url" -o "$tmp" || true
+      local now
+      now=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
+      if [[ $now -le $count ]]; then
+        stalls=$((stalls + 1))
+        say "no progress ($now of $size); stall $stalls"
+        [[ $stalls -ge 3 ]] && break
+        sleep 20
+      else
+        stalls=0
+      fi
+    done
     local got_size got_md5
     got_size=$(stat -c%s "$tmp" 2>/dev/null || echo 0)
     got_md5=$(md5sum "$tmp" 2>/dev/null | cut -d' ' -f1)
     if [[ "$got_md5" == "$md5" ]]; then
       mv "$tmp" "$dest"
-      say "$key DOWNLOADED md5-VERIFIED ($got_size bytes)"
+      say "$key DOWNLOADED md5-VERIFIED ($got_size bytes, attempt $attempts)"
       return 0
     fi
-    say "md5 mismatch $key attempt $attempts (got $got_size bytes md5=$got_md5; server sometimes serves corrupt replicas); deleting tmp"
-    rm -f "$tmp"
+    say "md5 mismatch $key attempt $attempts (got $got_size bytes md5=$got_md5); deleting partial and restarting clean"
+    rm -f "$tmp"   # a resumed file from mixed replicas can never verify
     sleep 30
   done
   return 1
