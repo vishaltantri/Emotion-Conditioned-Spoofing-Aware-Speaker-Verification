@@ -62,6 +62,36 @@ def add_table_before(doc, anchor, header: list[str], rows: list[list[str]],
     caption_para._p.addnext(table._tbl)
 
 
+CROSSGEN_MARKER = "Regime C"
+
+
+def add_crossgenerator(doc) -> None:
+    """Append the leave-one-generator-out paragraph once, after the Regime B text."""
+    if any(CROSSGEN_MARKER in p.text for p in doc.paragraphs):
+        return
+    anchor = next((p for p in doc.paragraphs
+                   if p.text.strip().startswith("The second regime explains why")), None)
+    if anchor is None:
+        raise SystemExit("could not find the Regime B paragraph to anchor against")
+    new = doc.add_paragraph()
+    anchor._p.addnext(new._p)  # move it directly after the Regime B paragraph
+    run = new.add_run(
+        "A third regime tests generalisation instead of assuming it. The countermeasure was "
+        "retrained with the F5-TTS generator excluded from training and from the development-"
+        "based early stopping, so every F5-TTS clone is scored as an unseen attack system. That "
+        "model reaches 6.27 % EER on the held-out generator (3.19 % on the generator it trained "
+        "on, 4.28 % overall), against 50.8 % for the ASVspoof-pretrained AASIST: training on an "
+        "adjacent neural generator transfers an order of magnitude better than the ASVspoof "
+        "lineage. Under this countermeasure the fusion arms reach 4.11 % (linear), 3.81 % "
+        "(interaction, +0.38 points, p < 0.001) and 3.93 % (gated, +0.27 points with an interval "
+        "from -0.23 to +0.86, p = 0.23) SASV-EER. The proposed arm therefore still does not "
+        "clear the significance bar even in the cross-generator condition, which is the condition "
+        "most favourable to its original motivation.")
+    run.font.name = "Times New Roman"
+    run.font.size = Pt(BODY)
+    new.paragraph_format.space_after = Pt(6)
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--docx", type=Path,
@@ -71,7 +101,9 @@ def main() -> None:
     doc = docx.Document(str(args.docx))
     texts = [p.text.strip() for p in doc.paragraphs]
     if any(t.startswith("4.4 Real-data results") for t in texts):
-        print("section 4.5 already present; nothing to do")
+        add_crossgenerator(doc)
+        doc.save(str(args.docx))
+        print("real-results section present; cross-generator update applied")
         return
 
     anchor = next(p for p in doc.paragraphs
