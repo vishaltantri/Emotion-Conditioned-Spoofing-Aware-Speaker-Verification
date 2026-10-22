@@ -1,0 +1,56 @@
+# Real-data evaluation: ESD English bona fide + EmoSpoof-TTS clones.
+#
+# Frozen before the first test-split report; changing a hyperparameter after
+# seeing test numbers invalidates the comparison. Two of the five arms are
+# required ablations (no-emotion, and capacity control).
+seed: 7
+
+splits:
+  train: train     # fusion fitting only
+  dev: dev         # threshold + model selection only
+  test: test       # reported once
+
+models:
+  - speaker_only
+  - linear
+  - emotion_additive
+  - emotion_interaction
+  - emotion_gated
+
+training:
+  l2: 0.003
+  max_iter: 3000
+  use_uncertainty: true
+  gated:
+    hidden: 4
+    lr: 0.03
+    epochs: 2500
+    patience: 300
+    validation_fraction: 0.15
+    early_stopping: true
+
+threshold:
+  policy: eer
+
+metrics:
+  tdcf_version: "2021"
+
+bootstrap:
+  n_resamples: 1000
+  seed: 7
+  level: 0.95
+
+report:
+  breakdown_by: [emotion, attack]
+  baseline_model: linear
+
+provenance:
+  kind: real
+  note: >-
+    ESD English speakers 0011-0020 (bona fide, emotion ground truth from the
+    corpus folders) + EmoSpoof-TTS F5-TTS and CosyVoice subsets (spoof, emotion
+    ground truth from the generator archives). Speaker split 4/2/4. ASV scores
+    from SpeechBrain ECAPA-TDNN, SER from wav2vec2-base-superb-er, CM from an
+    in-domain log-mel CNN trained on the train split only (the LA-trained AASIST
+    does not transfer to these clones; see docs/PROGRESS_LOG.md). Three-generator
+    design incomplete: the StyleTTS2 subset is still being fetched.

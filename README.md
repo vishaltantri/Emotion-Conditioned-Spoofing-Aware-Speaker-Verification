@@ -23,14 +23,18 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > working CUDA torch stack (`2.14.1+cu130`, RTX 3050 6 GB) built from offline
 > wheels.
 >
-> **First real measurement.** On the held-out test split the ECAPA SV front-end
+> **First real results.** On the held-out test split the ECAPA SV front-end
 > accepts 82.9 % of bona fide targets but also **55.2 % of EmoSpoof-TTS clones**
-> presented as the cloned speaker, and the rate depends on the emotion: angry
-> 64.6 %, neutral 61.7 %, happy 47.2 %, sad 47.5 % (dev SV-EER 4.40 %, threshold
-> chosen on dev only). Per generator: CosyVoice clones accepted 59.0 %, F5-TTS
-> 51.5 % (see [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md) for the tables). No
-> countermeasure score exists yet, so this is measured ASV vulnerability,
-> **not** a SASV-EER.
+> presented as the cloned speaker, emotion-dependent (angry 64.6 %, neutral
+> 61.7 %, sad 47.5 %, happy 47.2 %; per generator CosyVoice 59.0 %, F5-TTS
+> 51.5 %). Standard fusion removes that vulnerability when the countermeasure
+> works: SASV-EER falls from **33.1 % (ASV only) to 0.60 % (linear fusion)**.
+> The LA-pretrained AASIST does **not** transfer to these clones (SPF-EER
+> 50.8 %), and with an in-domain CM no emotion-conditioned arm beats plain
+> fusion (gated arm is 0.14 pts worse, p=0.98). With the failing CM the emotion
+> arms gain ~5.5 pts, but SER is confidently wrong on clones (30.7 % accuracy at
+> 0.83 confidence), so that gain is most likely a spoof cue, not emotion
+> conditioning. Full tables, CIs and caveats: [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 >
 > Still unfinished: the StyleTTS2 generator of EmoSpoof-TTS (re-fetch running),
 > ASVspoof 2019 LA extraction (blocked on disk space, not on code), AASIST CM
@@ -48,11 +52,13 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > | Merged real manifest + audit | done (0 errors, 4 warnings) |
 > | ASV scores on ESD (17,660 trials) | done |
 > | SER scores on ESD (17,660 trials) | done |
-> | ASV scores on the merged (ESD + spoof) manifest | running |
+> | ASV scores on the merged (ESD + spoof) manifest | done — 41,900 trials |
 > | Real ASV summary on the merged manifest | done — [scripts/summarize_real_scores.py](scripts/summarize_real_scores.py), 55.2 % spoof acceptance on test |
-| CM (AASIST) scores | blocked — no LA audio, no pretrained checkpoint |
-> | ASVspoof 2019 LA | download 6.5/7.6 GB; extraction needs ~7.5 GB free, 1.8 GB available |
-> | Real fusion evaluation | blocked on CM scores |
+> | CM scores (AASIST-LA, in-domain CNN) | done — 41,900 trials each; AASIST 50.8 % (no transfer), in-domain CNN 0.09 % |
+> | SER scores on the merged manifest | done — 41,900 trials |
+> | **Real SASV fusion evaluation, 5 arms, both CM regimes** | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+> | ASVspoof 2019 LA | blocked — inconsistent parts removed under ENOSPC; extraction needs ~7.5 GB free |
+> | EmoSpoof StyleTTS2 generator | re-fetching (third generator, cross-generator test) |
 
 ## Quickstart
 

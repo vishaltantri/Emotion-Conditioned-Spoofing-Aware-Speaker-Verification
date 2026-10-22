@@ -160,6 +160,37 @@ emotion-conditioned fusion stage is supposed to exploit, and it is measured, not
 assumed. It is **not** a SASV result: without a countermeasure score the
 combined decision cannot be formed, so no claim about fusion gains is made.
 
+### Real SASV fusion evaluation (first complete result)
+
+Scores for all 41,900 trials now exist for every component: ASV (ECAPA), SER
+(wav2vec2-superb-ER), CM from the bundled LA-trained AASIST checkpoint
+(`scripts/producer_cm_aasist.py`) and CM from an in-domain log-mel CNN
+(`scripts/train_cm_indomain.py`, train split only). `scripts/combine_scores.py`
+joins them and `easv evaluate` runs the five arms with dev-only thresholds.
+
+Two regimes, same manifest and ASV/SER scores, different CM:
+
+| model | in-domain CM (A), SASV-EER | AASIST-LA CM (B), SASV-EER |
+|---|---:|---:|
+| speaker_only | 0.3309 | 0.3309 |
+| linear | 0.0060 | 0.3244 |
+| emotion_additive | 0.0066 | 0.2654 |
+| emotion_interaction | 0.0055 | 0.2661 |
+| emotion_gated | 0.0073 | 0.2610 |
+
+* **A**: no emotion arm beats plain fusion; gated is 0.14 pts worse (p=0.98).
+* **B**: emotion arms gain +5.2 to +5.6 pts over linear (p<0.001) — but SER is
+  confidently wrong on clones (30.7 % accuracy, mean max prob 0.83) against
+  41.8 % on bona fide, so the emotion vector is partly a spoof detector. The
+  gain is therefore not evidence for emotion-conditioned modelling.
+* The pretrained AASIST itself is the headline negative: **SPF-EER 50.8 %** on
+  EmoSpoof clones. A CM trained on ASVspoof-2019 attack families does not
+  generalise to modern neural TTS in a different recording domain.
+
+Full tables, CIs, breakdowns and caveats: [REAL_RESULTS.md](REAL_RESULTS.md).
+Artifacts live outside the repo (`real/{scores_*,cm_indomain}`); the evaluation
+outputs are in `results/real/run1` and `results/real/run2_oodcm` (git-ignored).
+
 ### Download failures in this pass
 
 * The ASVspoof 2019 LA download was resumed with `scripts/segdl.sh`; under ENOSPC
