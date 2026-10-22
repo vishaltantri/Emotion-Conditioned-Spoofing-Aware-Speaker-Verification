@@ -166,6 +166,9 @@ def main() -> None:
     ap.add_argument("--lr", type=float, default=3e-4)
     ap.add_argument("--seconds", type=float, default=4.0)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--holdout-attack", default=None,
+                    help="generator excluded from training entirely; its rows are only "
+                         "scored, which turns the run into a cross-generator test")
     args = ap.parse_args()
 
     import torch
@@ -188,6 +191,14 @@ def main() -> None:
         n_spoof = sum(1 for r in rs if r["trial_type"] == "spoof")
         print(f"{split}: {len(rs)} trials ({n_spoof} spoof)", flush=True)
 
+    holdout = args.holdout_attack
+    if holdout:
+        held = sum(1 for r in rows if r["attack"] == holdout)
+        if held == 0:
+            raise SystemExit(f"holdout attack '{holdout}' not present in the manifest")
+        print(f"cross-generator run: '{holdout}' ({held} spoof trials) excluded from "
+              f"training and reported separately", flush=True)
+
         # Python 3.14 defaults to the forkserver start method, which refuses to
     # pickle locally defined classes; fork is fine for a read-only dataset.
     torch.multiprocessing.set_start_method("fork", force=True)
@@ -197,8 +208,11 @@ def main() -> None:
                           shuffle=shuffle, num_workers=4, persistent_workers=True,
                           drop_last=shuffle)
 
-    train_loader = make_loader(by_split["train"], True)
-    dev_loader = make_loader(by_split["dev"], False)
+    def without_holdout(rs):
+        return [r for r in rs if r["attack"] != holdout] if holdout else rs
+
+    train_loader = make_loader(without_holdout(by_split["train"]), True)
+    dev_loader = make_loader(without_holdout(by_split["dev"]), False)
 
     model = build_model().to(device)
     opt = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -227,7 +241,7 @@ def main() -> None:
             total += float(loss) * len(y)
             seen += len(y)
         dev_scores = score_loader(dev_loader)
-        dev_rows = by_split["dev"]
+        dev_rows = without_holdout(by_split["dev"])
         s = [dev_scores[i] for i in range(len(dev_rows))]
         lab = [r["trial_type"] != "spoof" for r in dev_rows]
         dev_eer = compute_eer(s, lab).eer
@@ -247,9 +261,10 @@ def main() -> None:
     # --- score every split with the dev-selected model -----------------------
     scores: dict[str, float] = {}
     metrics = {"provenance": "real", "model": "logmel_cnn", "best_epoch": best_epoch,
-               "dev_cm_eer": best_eer, "note": ("in-domain CM: trained and evaluated on "
-                                                "ESD bona fide vs EmoSpoof clones; "
-                                                "unseen generators untested")}
+               "dev_cm_eer": best_eer, "holdout_attack": holdout,
+               "note": ("in-domain CM: trained on ESD bona fide vs EmoSpoof clones" if not holdout
+                        else f"cross-generator CM: '{holdout}' excluded from training and dev "
+                             f"selection, scored for generalisation")}
     for split, rs in by_split.items():
         loader = make_loader(rs, False)
         raw = score_loader(loader)
@@ -259,6 +274,17 @@ def main() -> None:
         metrics[f"{split}_cm_eer"] = float(eer)
         metrics[f"{split}_n"] = len(rs)
         print(f"{split}: CM-EER = {100 * eer:.2f}%", flush=True)
+        if holdout:
+            # held-out rows are all spoof, so the comparison set must add the
+            # bona fide trials of the same split; EER inside the spoof-only
+            # subset is undefined (single class).
+            idx = [i for i, r in enumerate(rs)
+                   if r["attack"] == holdout or r["trial_type"] != "spoof"]
+            if idx and any(lab[i] for i in idx) and not all(lab[i] for i in idx):
+                sub_eer = compute_eer(s[idx], lab[idx]).eer
+                metrics[f"{split}_heldout_{holdout}_cm_eer"] = float(sub_eer)
+                print(f"{split}: held-out generator {holdout} CM-EER = "
+                      f"{100 * sub_eer:.2f}% (n={len(idx)})", flush=True)
         for i, r in enumerate(rs):
             scores[r["trial_id"]] = float(s[i])
 

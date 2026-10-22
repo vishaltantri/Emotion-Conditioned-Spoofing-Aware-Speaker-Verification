@@ -187,6 +187,16 @@ Two regimes, same manifest and ASV/SER scores, different CM:
   EmoSpoof clones. A CM trained on ASVspoof-2019 attack families does not
   generalise to modern neural TTS in a different recording domain.
 
+A third regime closes the generalisation question the two-generator corpus can
+answer: `scripts/train_cm_indomain.py --holdout-attack f5_tts` excludes one
+generator from training *and* from dev-based early stopping, so every F5-TTS
+clone is scored as an unseen attack. That CM reaches 3.19 % EER on the generators
+it trained on and **6.27 % on the held-out one** (overall 4.28 %), against 50.8 %
+for AASIST-LA: generator-adjacent training data transfers far better than the
+ASVspoof lineage. Fusion under this CM lands at 4.11 % (linear), 3.81 %
+(interaction, +0.38 pts, p<0.001) and 3.93 % (gated, +0.27 pts, CI −0.23–0.86,
+p=0.23), so the proposed arm still does not clear the significance bar.
+
 Full tables, CIs, breakdowns and caveats: [REAL_RESULTS.md](REAL_RESULTS.md).
 Artifacts live outside the repo (`real/{scores_*,cm_indomain}`); the evaluation
 outputs are in `results/real/run1` and `results/real/run2_oodcm` (git-ignored).

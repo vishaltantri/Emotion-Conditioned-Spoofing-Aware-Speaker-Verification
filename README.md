@@ -34,7 +34,11 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > fusion (gated arm is 0.14 pts worse, p=0.98). With the failing CM the emotion
 > arms gain ~5.5 pts, but SER is confidently wrong on clones (30.7 % accuracy at
 > 0.83 confidence), so that gain is most likely a spoof cue, not emotion
-> conditioning. Full tables, CIs and caveats: [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
+> conditioning. Under a leave-one-generator-out countermeasure (F5-TTS never seen
+> in training) the CM still detects held-out clones at 6.27 % EER — two orders
+> better than the LA-pretrained AASIST — and the fusion arms land at 3.8–4.2 %
+> SASV-EER, where the gated arm's +0.27 pt edge over linear has a CI including
+> zero. Full tables, CIs and caveats: [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 >
 > Still unfinished: the StyleTTS2 generator of EmoSpoof-TTS (re-fetch running),
 > ASVspoof 2019 LA extraction (blocked on disk space, not on code), AASIST CM
@@ -56,7 +60,8 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > | Real ASV summary on the merged manifest | done — [scripts/summarize_real_scores.py](scripts/summarize_real_scores.py), 55.2 % spoof acceptance on test |
 > | CM scores (AASIST-LA, in-domain CNN) | done — 41,900 trials each; AASIST 50.8 % (no transfer), in-domain CNN 0.09 % |
 > | SER scores on the merged manifest | done — 41,900 trials |
-> | **Real SASV fusion evaluation, 5 arms, both CM regimes** | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+> | **Real SASV fusion evaluation, 5 arms, three CM regimes** | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+| Cross-generator CM (leave-one-generator-out) | done — held-out F5-TTS at 6.27 % CM-EER |
 > | ASVspoof 2019 LA | blocked — inconsistent parts removed under ENOSPC; extraction needs ~7.5 GB free |
 > | EmoSpoof StyleTTS2 generator | re-fetching (third generator, cross-generator test) |
 

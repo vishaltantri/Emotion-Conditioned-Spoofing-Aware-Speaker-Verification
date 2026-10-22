@@ -49,6 +49,36 @@ out-of-domain AASIST checkpoint (SPF-EER 50.8 %, min t-DCF 0.999).
 Paired bootstrap vs `linear`: additive **+5.28 pts** (2.97–8.88, p<0.001),
 interaction +5.19 (2.94–8.57, p<0.001), gated **+5.57** (2.86–9.85, p<0.001).
 
+## Regime C — cross-generator countermeasure (leave-one-generator-out)
+
+`results/real/run3_crossgen`, `real/cm_holdout_f5`. The CM is retrained with the
+F5-TTS generator **excluded from training and from dev-based early stopping**, so
+every F5-TTS clone it scores is from an unseen attack system. This is the
+honest generalisation test the two-generator corpus can support today.
+
+| quantity | value |
+|---|---:|
+| CM-EER on generators seen in training (CosyVoice) | 3.19 % |
+| CM-EER on the held-out generator (F5-TTS) | **6.27 %** |
+| CM-EER overall (test) | 4.28 % |
+| AASIST-LA for comparison | 50.8 % |
+
+| model | SASV-EER | 95 % CI | min a-DCF | ECE |
+|---|---:|---|---:|---:|
+| speaker_only | 0.3309 | 0.2605–0.3816 | 0.7294 | 0.125 |
+| linear | 0.0411 | 0.0266–0.0517 | 0.1176 | 0.064 |
+| emotion_additive | 0.0417 | 0.0224–0.0533 | 0.1148 | 0.069 |
+| emotion_interaction | 0.0381 | 0.0193–0.0506 | 0.1330 | 0.054 |
+| emotion_gated | 0.0393 | 0.0220–0.0532 | 0.1643 | 0.048 |
+
+Paired bootstrap vs `linear`: additive +0.01 pts (p=0.56), interaction **+0.38 pts**
+(0.08–1.11, p<0.001), gated +0.27 pts (−0.23–0.86, p=0.23). So under a genuinely
+unseen generator the emotion arms are at best marginally better, and the
+proposed gated arm's interval still includes zero. Two findings are solid here:
+(a) a CM trained on one neural generator transfers to another far better than an
+LA-trained CM transfers to either (6.27 % vs 50.8 % EER), and (b) even then,
+emotion conditioning does not deliver the large gain the hypothesis predicted.
+
 ## The catch: why the Regime B gain is not (only) emotion conditioning
 
 The SER front-end is confidently wrong on clones: 30.7 % accuracy — barely above
@@ -85,10 +115,16 @@ Established (measured, real audio, dev-only thresholds, test reported once):
 
 Not established:
 
-* any cross-generator benefit (third generator still downloading);
-* any claim that the proposed gated fusion is better than plain fusion — on this
-  data it is not, and saying otherwise would be dishonest;
+* a cross-generator *benefit* from the gated arm: the leave-one-generator-out run
+  gives it +0.27 pts with an interval that includes zero, while the interaction
+  control gets a small significant +0.38 pts;
+* a third-generator (StyleTTS2) result — its archive is still being fetched;
 * an in-domain AASIST re-trained on ASVspoof 2019 LA (blocked on disk space).
+
+What *is* established about generalisation: a CM trained on CosyVoice clones
+detects held-out F5-TTS clones at 6.27 % EER, an order of magnitude better than
+the 50.8 % of the LA-pretrained AASIST — generator-adjacent training data matters
+more than the ASVspoof lineage for this corpus.
 
 ## Reproduce
 
