@@ -40,7 +40,7 @@ def add_para_before(anchor, text: str, *, bold: bool = False, size: int = BODY,
 
 def add_table_before(doc, anchor, header: list[str], rows: list[list[str]],
                      caption: str) -> None:
-    add_para_before(anchor, caption, size=10, italic=True, space_after=2)
+    caption_para = add_para_before(anchor, caption, size=10, italic=True, space_after=2)
     table = doc.add_table(rows=len(rows) + 1, cols=len(header))
     table.style = "Table Grid"
     table.autofit = True
@@ -58,7 +58,8 @@ def add_table_before(doc, anchor, header: list[str], rows: list[list[str]],
             run = cell.paragraphs[0].add_run(text)
             run.font.size = Pt(SMALL)
             run.font.name = "Times New Roman"
-    anchor._p.addprevious(table._tbl)
+    # place the table directly after its own caption, not at the end of the section
+    caption_para._p.addnext(table._tbl)
 
 
 def main() -> None:
@@ -150,14 +151,19 @@ def main() -> None:
                 "real performance claims in this report. Neither part establishes novelty over "
                 "published systems.")
         elif t.startswith("The completed work demonstrates a reproducible score-level"):
-            extra = next((r for r in p.runs if r.text.strip()), None)
-            if extra is not None:
-                extra.text = extra.text + (
-                    " Since this paragraph was written, the real execution has also produced "
-                    "trained front-end scores, two countermeasures and a full real-data fusion "
-                    "evaluation; what remains open is cross-generator generalisation (the "
-                    "StyleTTS2 subset is still being fetched) and an in-domain AASIST retrained on "
-                    "the ASVspoof 2019 LA corpus, which the available disk space does not yet allow.")
+            for run in p.runs:
+                run.text = ""
+            p.runs[0].text = (
+                "The completed work demonstrates a reproducible score-level evaluation pipeline, an "
+                "explicit fusion ablation ladder, data audits, metric implementations, trained ASV, "
+                "SER and countermeasure front-ends, and both a synthetic smoke test and a real "
+                "experiment on ESD and EmoSpoof-TTS data. What it does not show is that the proposed "
+                "emotion-conditioned mechanism is better than conventional fusion, that it "
+                "generalises to an unseen generator, or that the result survives replacing emotion "
+                "features by an explicit confidence signal. It also does not include an AASIST "
+                "retrained on ASVspoof 2019 LA, because the corpus cannot be extracted on the "
+                "available disk volume. Each of those gaps can change the conclusion, so the "
+                "negative result in section 4.4 stands as the finding rather than as a placeholder.")
         elif t.startswith("The synthetic run provides no basis for claiming real authentication gains"):
             for run in p.runs:
                 run.text = ""
