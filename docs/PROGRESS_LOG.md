@@ -18,11 +18,13 @@ exist so far live in `results/e2e/` and are deliberately uncommitted.
 | ESD manifest built + audited | **done** — `results/e2e/m_esd_real.csv` (17,660 rows), `easv audit` clean |
 | ASV producer (SpeechBrain ECAPA-TDNN embeddings, cosine) | **done on real ESD audio** → `real/scores_asv_esd.csv` |
 | SER producer (wav2vec2-base-superb-ER softmax → emo_* cols) | **done on real ESD audio** → `real/scores_ser_esd.csv` |
-| EmoSpoof-TTS download (StyleTTS2 2.9 GB → F5-TTS 1.1 GB → CosyVoice 2.7 GB) | **running** — single-stream md5-gated rescue (see below) |
-| ASVspoof 2019 LA download (7.6 GB, selective train/dev/protocols extract) | **queued** after EmoSpoof (stream 4) |
-| AASIST CM training | **blocked** on LA audio |
-| EmoSpoof manifest + merged manifest + audit | **blocked** on EmoSpoof extraction |
-| Fusion on real scores (RSVs + ASV + SER integration) | blocked on EmoSpoof spoof rows |
+| EmoSpoof-TTS download (StyleTTS2 2.9 GB → F5-TTS 1.1 GB → CosyVoice 2.7 GB) | **2 of 3 landed** — F5-TTS + CosyVoice extracted (12,000 wavs each); StyleTTS2 md5-verified and extracted, directory missing on disk |
+| EmoSpoof manifest + merged manifest + audit | **done** — 24,000 EmoSpoof rows, 41,900-row merged manifest, `easv audit` 0 errors / 4 warnings |
+| CUDA torch in the audio venv | **done** — `2.14.1+cu130`, `cuda.is_available()` True (RTX 3050 6 GB) |
+| ASV scores on the merged manifest | **running** — `real/scores_asv_merged.csv` |
+| ASVspoof 2019 LA download (7.6 GB, selective train/dev/protocols extract) | **partial** — 6.5/7.6 GB on disk, download resuming; extraction needs ~7.5 GB free, volume has 1.8 GB |
+| AASIST CM training | **blocked** — no LA audio, no pretrained checkpoint |
+| Fusion on real scores | **blocked** on CM scores |
 
 ## What was executed in this pass
 
@@ -80,6 +82,69 @@ exist so far live in `results/e2e/` and are deliberately uncommitted.
    reporting against the ESD-manifest + spoof rows).
 3. The AASIST training recipe (`scripts/EASIST_LA.conf`) cannot start until LA
    train audio is extracted.
+
+## Pass 2 (2026-10-22, ~11:00–14:00): first real multi-corpus artifacts
+
+### Dataset outcomes
+
+* **StyleTTS2.zip (2.93 GB)** — single-stream md5-gated fetch verified against the
+  record's authoritative md5 (`cc70b4d6da9f2ecde9637b57b5e56726`), CRC-validated,
+  extracted, archive removed. The extracted tree is **absent** from
+  `emospoof/` afterwards (only the two other generators and `__MACOSX` remain),
+  so this generator must be re-fetched. A fixture copy inside
+  `data/easv/fixture/emospoof/` is unrelated test scaffolding, not the corpus.
+* **F5TTS.zip (1.09 GB)** and **CosyVoice.zip (2.67 GB)** — both md5-verified,
+  CRC-validated, extracted, archives removed. Each yields 10 cloned speakers ×
+  4 emotions × 300 utterances = **12,000 wavs** (`emospoof/F5TTS`, `emospoof/CosyVoice`).
+* The rescue loop was still re-downloading CosyVoice although its tree was already
+  complete; both rescue and follow-on streams were stopped to protect the 80 MB
+  of remaining free space from ENOSPC corruption.
+
+### Real manifests and audit
+
+| manifest | rows | notes |
+|---|---:|---|
+| `results/e2e/m_esd_real.csv` | 17,900 | 17,500 ESD targets (10 spk × 5 emotions × 350) + 400 derived cross-speaker nontargets |
+| `results/e2e/m_emospoof.csv` | 24,000 | spoof rows, `attack` = generator, emotion from the folder name |
+| `results/e2e/merged_manifest.csv` | 41,900 | generator splits demoted to the ESD speaker split (4/2/4) so no speaker crosses splits in targets/spoof |
+
+`easv audit --manifest results/e2e/merged_manifest.csv --out results/e2e/audit_real`
+reports **0 errors, 4 warnings**: two `speaker_overlap` and two `generator_overlap`
+warnings. They are expected consequences of the merge policy — derived nontarget
+rows deliberately pair speakers across splits, and both available generators
+appear in every split once rows follow their speaker's split. The third
+(StyleTTS2) generator is what would give a held-out-system split; that is the
+reason to re-fetch it.
+
+Merged coverage: train 16,760 / dev 8,380 / test 16,760 trials, 5 emotions and 2
+attacks everywhere, so the test split does contain spoof trials despite the
+missing generator.
+
+### Environment
+
+`torch 2.14.1+cu130` now imports in the project venv with
+`torch.cuda.is_available() == True` on the **RTX 3050 6 GB**. The earlier install
+failure was not the wheel (Python 3.14 matches `cp314`) but the missing NVIDIA
+runtime libraries: torch's loader raises `ValueError: libcublasLt.so.* not found`,
+then `ImportError: libcufile.so.0`, then `libnvshmem_host.so.3`. Installing
+`nvidia_cublas`, `nvidia_cudnn_cu13`, `nvidia_cuda_runtime`, `nvidia_cuda_nvrtc`,
+`nvidia_nvjitlink`, `nvidia_cufft`, `nvidia_curand`, `nvidia_cusolver`,
+`nvidia_cusparse`, `nvidia_nccl_cu13`, `nvidia_nvtx`, `nvidia_cuda_cupti`,
+`nvidia_cufile`, `nvidia_cusparselt_cu13` and `nvidia_nvshmem_cu13` from the same
+offline wheel directory resolves it. Also installed `sympy`, `networkx`,
+`filelock`, `jinja2`, `fsspec` for torch's runtime imports.
+
+### Disk: the real blocker
+
+The 183 GB root volume is at 99 % with the user's own data (Desktop, Downloads,
+other tool caches) occupying it; this project's data root holds 5.4 GB EmoSpoof +
+6.5 GB LA parts + 2.9 GB wheels + 1.5 GB ESD. Reclaimable caches were cleaned
+(pip 3.6 GB, npm 2.3 GB, `/tmp` leftovers), which moved free space from 16 KB to
+~1.8 GB. ASVspoof 2019 LA extraction needs roughly **7.5 GB free** (zip already
+counts against the 7.6 GB total), so AASIST training stays blocked until space is
+released outside this project. ~/.cache/huggingface (2.9 GB, unrelated NLP models),
+~/.gradle (3.1 GB) and ~/.local/share/Trash (2.1 GB) are the obvious candidates;
+they are the owner's, so they were left untouched.
 
 Recorded by the agent working on the owner's behalf; numbers quoted are read off
 `wc -l` of the manifest/score files above (17661 lines including header) and the

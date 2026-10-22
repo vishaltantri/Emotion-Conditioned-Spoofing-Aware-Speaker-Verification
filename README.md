@@ -17,11 +17,31 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > repository about emotion-conditioned gains on real speech is supported yet.
 >
 > Verified so far: 66 tests, novelty gate closed (conditional GO, 4+1 papers read
-> at recorded depth), 17,660-trial ESD English manifest built and audited, real
-> ASV (ECAPA-TDNN) and SER (wav2vec2-superb-ER) producers run over all of it.
-> Still unfinished: EmoSpoof-TTS corpus download (run with checksum-gated
-> resumable loader), ASVspoof 2019 LA, AASIST CM training, and the first real
-> fusion evaluation.
+> at recorded depth), a 41,900-row real merged manifest
+> (17,900 ESD + 24,000 EmoSpoof, `easv audit` clean with 0 errors), real ASV
+> (ECAPA-TDNN) and SER (wav2vec2-superb-ER) producers run over all of ESD, and a
+> working CUDA torch stack (`2.14.1+cu130`, RTX 3050 6 GB) built from offline
+> wheels.
+>
+> Still unfinished: the StyleTTS2 generator of EmoSpoof-TTS, ASVspoof 2019 LA
+> extraction (blocked on disk space, not on code), AASIST CM training, and the
+> first real fusion evaluation — the latter two need CM scores, which need LA.
+>
+> **Stage status at a glance**
+>
+> | stage | state |
+> |---|---|
+> | Evaluation core (manifest/audit/fusion/metrics/CLI, 66 tests) | done |
+> | ESD English subset + manifest (17,900 rows) | done |
+> | EmoSpoof-TTS: F5-TTS + CosyVoice (24,000 wavs), manifest | done |
+> | EmoSpoof-TTS: StyleTTS2 generator | missing on disk — re-fetch pending |
+> | Merged real manifest + audit | done (0 errors, 4 warnings) |
+> | ASV scores on ESD (17,660 trials) | done |
+> | SER scores on ESD (17,660 trials) | done |
+> | ASV scores on the merged (ESD + spoof) manifest | running |
+> | CM (AASIST) scores | blocked — no LA audio, no pretrained checkpoint |
+> | ASVspoof 2019 LA | download 6.5/7.6 GB; extraction needs ~7.5 GB free, 1.8 GB available |
+> | Real fusion evaluation | blocked on CM scores |
 
 ## Quickstart
 
@@ -147,13 +167,27 @@ Not implemented (deliberately, see the plan's novelty gate):
   ECAPA-TDNN embeddings + cosine) and SER producer
   ([scripts/producer_ser.py](scripts/producer_ser.py), wav2vec2-base-superb-ER →
   `emo_*` softmax columns) — both completed on the full manifest;
-* [ ] EmoSpoof-TTS (StyleTTS2 → F5-TTS → CosyVoice) — download is running as a
-  checksum-gated single-stream rescue ([scripts/dataset_rescue.sh](scripts/dataset_rescue.sh))
-  after the segmented downloader proved unreliable on the Zenodo-hosted archive;
-* [ ] ASVspoof 2019 LA download → selective train/dev/protocols extract;
+* [x] EmoSpoof-TTS downloads, checksum-gated single-stream rescue
+  ([scripts/dataset_rescue.sh](scripts/dataset_rescue.sh)) after the segmented
+  downloader proved unreliable on the Zenodo-hosted archive:
+  * StyleTTS2 (2.93 GB) — md5-verified, CRC-valid, extracted; the extracted
+    directory did **not** survive on disk and is missing (re-fetch pending);
+  * F5-TTS (1.09 GB) — md5-verified, extracted, 12,000 wavs;
+  * CosyVoice (2.67 GB) — md5-verified, extracted, 12,000 wavs;
+* [x] EmoSpoof manifest (`scripts/build_manifests.py emospoof`, 24,000 rows) and
+  merged real manifest with ESD (`scripts/merge_manifests.py`, 41,900 rows);
+  `easv audit` → 0 errors, 4 warnings (cross-speaker nontarget rows and both
+  available generators present in every split);
+* [x] Offline CUDA torch for the audio venv: `torch 2.14.1+cu130` imports and
+  `torch.cuda.is_available()` is `True` on the RTX 3050, after installing the
+  NVIDIA runtime wheels (cublas, cudnn, cuda_runtime, nvrtc, nvjitlink, cufft,
+  curand, cusolver, cusparse, nccl, nvtx, cupti, cufile, cusparselt, nvshmem);
+* [ ] StyleTTS2 generator re-fetch to complete the three-generator design;
+* [ ] ASVspoof 2019 LA download → selective train/dev/protocols extract
+  (download 6.5/7.6 GB complete; extraction needs ~7.5 GB free and the volume has
+  1.8 GB — disk, not code, is the blocker);
 * [ ] AASIST CM training ([scripts/EASIST_LA.conf](scripts/EASIST_LA.conf)) once LA audio lands;
-* [ ] EmoSpoof manifest + e2e merge + audit;
-* [ ] fusion evaluation on real scores.
+* [ ] fusion evaluation on real scores (needs the CM scores above).
 
 ## Research-integrity rules encoded in the code
 
