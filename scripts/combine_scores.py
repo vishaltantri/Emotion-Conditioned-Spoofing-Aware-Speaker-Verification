@@ -29,6 +29,42 @@ def read_rows(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(fh))
 
 
+def combine_rows(base: list[dict], cm: dict[str, str],
+                 emo: dict[str, dict[str, str]] | None = None
+                 ) -> tuple[list[dict], int, int, list[str]]:
+    """Left-join on trial_id, driven by the speaker-score rows.
+
+    Returns ``(rows, dropped_missing_cm, missing_emotion, emo_columns)``. Rows
+    without a countermeasure score are dropped rather than filled: a fabricated
+    CM score moves every SASV number silently, which is exactly the failure this
+    project is built to avoid.
+    """
+    emo = emo or {}
+    emo_cols: list[str] = []
+    for r in emo.values():
+        emo_cols = [c for c in r if c.startswith("emo_")]
+        break
+    rows: list[dict] = []
+    dropped_cm = 0
+    missing_emo = 0
+    for r in base:
+        tid = r["trial_id"]
+        if tid not in cm:
+            dropped_cm += 1
+            continue
+        row = {"trial_id": tid, "speaker_score": r["speaker_score"],
+               "cm_score": cm[tid]}
+        if emo_cols:
+            src = emo.get(tid)
+            if src is None:
+                missing_emo += 1
+            else:
+                for c in emo_cols:
+                    row[c] = src.get(c, "")
+        rows.append(row)
+    return rows, dropped_cm, missing_emo, emo_cols
+
+
 def main() -> None:
     ap = argparse.ArgumentParser(__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
@@ -48,28 +84,14 @@ def main() -> None:
             emo_cols = [c for c in emo_rows[0] if c.startswith("emo_")]
             emo = {r["trial_id"]: r for r in emo_rows}
 
+    rows, no_cm, no_emo, emo_cols = combine_rows(base, cm, emo)
     header = ["trial_id", "speaker_score", "cm_score", *emo_cols]
-    kept, no_cm, no_emo = 0, 0, 0
     args.out.parent.mkdir(parents=True, exist_ok=True)
     with open(args.out, "w", newline="", encoding="utf-8") as fh:
         writer = csv.DictWriter(fh, fieldnames=header)
         writer.writeheader()
-        for r in base:
-            tid = r["trial_id"]
-            if tid not in cm:
-                no_cm += 1
-                continue
-            row = {"trial_id": tid, "speaker_score": r["speaker_score"],
-                   "cm_score": cm[tid]}
-            if emo_cols:
-                src = emo.get(tid)
-                if src is None:
-                    no_emo += 1
-                else:
-                    for c in emo_cols:
-                        row[c] = src.get(c, "")
-            writer.writerow(row)
-            kept += 1
+        writer.writerows(rows)
+    kept = len(rows)
 
     print(f"wrote {kept} rows -> {args.out}")
     print(f"dropped: missing cm={no_cm}, missing emotion={no_emo}")
