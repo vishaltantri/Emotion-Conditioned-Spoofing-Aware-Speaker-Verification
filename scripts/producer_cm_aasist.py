@@ -7,8 +7,11 @@ convention and AASIST's own evaluation script: the score is the bonafide logit
 ``batch_out[:, 1]``, so **higher = more bona fide**.
 
 The pretrained model is the standard SASV-2022-style CM front-end, which is why
-it can score our EmoSpoof clones without retraining on LA here; training an
-in-domain AASIST is a separate stage that needs the LA corpus extracted.
+it can score the EmoSpoof clones without any training here. Retraining AASIST on
+ASVspoof 2019 LA is a separate script (``train_cm_aasist_la.py``); it is worth
+running because the released checkpoint turns out to be at chance on these clones
+(SPF-EER 50.8 %), and the retrained model answers whether that is a property of
+the checkpoint or of the LA supervision (it is the latter: 43.8 % on EASV).
 
 Audio handling mirrors ``data_utils.Dataset_ASVspoof2019_eval``: 16 kHz mono,
 ``nb_samp = 64600`` samples (4.04 s), centre crop when longer, tile when shorter.

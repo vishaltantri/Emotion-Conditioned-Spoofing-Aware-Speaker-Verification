@@ -215,33 +215,99 @@ def update_abstract(doc) -> bool:
     for p in doc.paragraphs:
         if not p.text.strip().startswith("Voice authentication is useful only when"):
             continue
-        if "53,900" in p.text:
+        if "82.9 % of targets and 38.8 % of clones" in p.text and len(p.text.split()) < 200:
             return False
         _set_text(p, (
-            "Voice authentication is useful only when a system can distinguish a genuine "
-            "claimant from an impostor and from a synthetic voice. This project implements, "
-            "audits and executes a score-level evaluation pipeline for emotion-conditioned "
-            "spoofing-aware speaker verification (EASV). The corpus combines ESD English bona "
-            "fide recordings of ten speakers with 36,000 EmoSpoof-TTS clones from three neural "
-            "generators (StyleTTS2, F5-TTS, CosyVoice), producing 53,900 speaker-disjoint "
-            "trials. Speaker, emotion and countermeasure scores come from SpeechBrain "
-            "ECAPA-TDNN, wav2vec2-base-superb-ER and a log-mel CNN; a published AASIST "
-            "checkpoint and an AASIST retrained on ASVspoof 2019 LA provide the transfer "
-            "controls. Fusion models are fitted on train, thresholds are selected on dev, and "
-            "the test split is reported once with grouped-bootstrap intervals. Measured, the "
-            "speaker front-end accepts 82.9 % of bona fide targets and 38.8 % of clones, "
-            "strongly generator-dependent (CosyVoice 59.0 %, F5-TTS 51.5 %, StyleTTS2 5.9 %); "
-            "conventional fusion cuts SASV-EER from 33.1 % to 0.60 % when the countermeasure "
-            "works, while ASVspoof-2019 countermeasures do not transfer to these clones "
-            "(50.8 % pretrained, 43.8 % retrained in-domain). On the complete corpus with "
-            "StyleTTS2 held out, the countermeasure detects the unseen generator at 2.50 % "
-            "EER and the proposed gated fusion is the best arm (1.54 % against 2.27 % SASV-EER, "
-            "and +0.48 points over the interaction control), but its learned gate weights are "
-            "flat across emotions, so the gain cannot be attributed to emotion conditioning. "
-            "All 79 tests pass. The report presents these results and their limits without "
-            "claiming novelty over published systems."))
+            "Voice authentication must distinguish a genuine claimant from an impostor and "
+            "from a synthetic voice. This project implements, audits and executes a score-level "
+            "pipeline for emotion-conditioned spoofing-aware speaker verification on real "
+            "speech: 53,900 speaker-disjoint trials combining ESD English bona fide recordings "
+            "with 36,000 EmoSpoof-TTS clones from three generators. Speaker, emotion and "
+            "countermeasure scores come from ECAPA-TDNN, wav2vec2-superb-ER and a log-mel CNN, "
+            "with ASVspoof-2019 AASIST variants as transfer controls. Fusion is fitted on train, "
+            "thresholds are chosen on dev, and test is reported once with grouped-bootstrap "
+            "intervals. The speaker front-end accepts 82.9 % of targets and 38.8 % of clones, "
+            "strongly generator-dependent (CosyVoice 59.0 %, F5-TTS 51.5 %, StyleTTS2 5.9 %). "
+            "Conventional fusion cuts SASV-EER from 33.1 % to 0.60 % when the countermeasure "
+            "works, while ASVspoof-2019 countermeasures do not transfer to these clones. With "
+            "StyleTTS2 held out, the proposed gated arm is the best model (1.54 % against "
+            "2.27 %), but its learned gate weights are flat across emotions, so the gain cannot "
+            "be attributed to emotion conditioning. The report states these results and their "
+            "limits; no novelty over published systems is claimed."))
         return True
     return False
+
+
+def update_toc_pages(doc, pages: dict[str, str]) -> bool:
+    """Re-point the static contents table after the real-data text was added.
+
+    The contents page is a plain table, not a Word TOC field, so it does not
+    update itself. Chapters 1-4 start on unchanged pages (the additions are all
+    inside chapter 4); chapter 5, references and appendix move. The numbers are
+    derived from the added word count at the document's measured words-per-page
+    and should be confirmed in Word before submission.
+    """
+    for table in doc.tables:
+        if not table.rows or table.rows[0].cells[0].text.strip() != "Abstract":
+            continue
+        for row in table.rows:
+            key = row.cells[0].text.strip()
+            for prefix, page in pages.items():
+                if key.startswith(prefix):
+                    row.cells[1].text = page
+        return True
+    return False
+
+
+def update_ser_numbers(doc) -> None:
+    """Give both SER measurements instead of the two-generator one alone."""
+    for p in doc.paragraphs:
+        if not p.text.strip().startswith("The second regime explains"):
+            continue
+        _set_text(p, (
+            "The second regime explains why an apparent gain must be read carefully. The "
+            "pretrained AASIST checkpoint, trained on ASVspoof-2019 attack families, scores at "
+            "chance on these clones (SPF-EER 50.8 %). When that failing countermeasure is used, "
+            "the emotion arms improve SASV-EER by about 5.5 points with p < 0.001. The mechanism "
+            "is not emotion conditioning: the emotion recogniser is confidently wrong on "
+            "synthetic speech — 30.7 % accuracy at 0.83 mean confidence on the two-generator "
+            "corpus, 32.8 % at 0.82 on the full three-generator corpus, against 41.2 % on "
+            "genuine speech — so its probability vector implicitly encodes whether the audio is "
+            "synthetic. Emotion features act as a substitute spoof detector, which is a confound "
+            "rather than the proposed effect, and it sets the agenda for the next pass: replace "
+            "the emotion features with an explicit confidence scalar and test whether the gain "
+            "survives."))
+        break
+
+
+def update_closing_paragraphs(doc) -> None:
+    """Replace the two closing paragraphs that still describe future work only."""
+    for p in doc.paragraphs:
+        t = p.text.strip()
+        if t.startswith("Future work should close the literature gate"):
+            _set_text(p, (
+                "Future work should close what this study leaves open: a held-out-emotion "
+                "split, since every emotion condition here appears in training; a "
+                "pre-registered decision table, because the success margins were recorded only "
+                "after the test report; the two ablation overlays on real data; repeated seeds "
+                "and a second speaker split; reproduction of a published baseline under a "
+                "matched protocol, which would also validate the metric code against reference "
+                "numbers; and the ASVspoof 2019 evaluation partition, which would give the "
+                "retrained countermeasure a standard benchmark instead of two held-out speakers. "
+                "The ESD research licence also has to be settled before publication. These "
+                "steps will determine whether the gating advantage survives, is limited to the "
+                "cross-generator condition, or is an artefact of capacity and calibration."))
+        elif t.startswith("This project implemented and audited a score-level research"):
+            _set_text(p, (
+                "This project implemented and audited a score-level research infrastructure for "
+                "emotion-conditioned spoofing-aware speaker verification, and then executed it "
+                "on real speech. Its practical contribution at this stage is methodological: it "
+                "separates manifest truth from model inputs, checks leakage risks, preserves "
+                "train/dev/test roles, compares a transparent fusion ladder, and records "
+                "uncertainty and group-level behaviour. The full automated test suite passed, "
+                "the synthetic demonstration completed as a pipeline smoke test, and the real "
+                "corpus produced the measured component, fusion and transfer results in "
+                "section 4.4."))
 
 
 def update_audit_paragraph(doc) -> None:
@@ -436,6 +502,10 @@ def main() -> None:
         update_abstract(doc)
         update_intro(doc)
         update_audit_paragraph(doc)
+        update_ser_numbers(doc)
+        update_closing_paragraphs(doc)
+        update_toc_pages(doc, {"Chapter 5": "18", "References": "19",
+                               "Appendix": "21"})
         update_reproducibility_note(doc)
         update_appendix(doc)
         added = add_three_generator(doc)

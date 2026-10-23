@@ -53,24 +53,46 @@ ground-truth emotion out of the score file — the pipeline treats the score fil
 system output, and mixing labels into it is the easiest way to leak evaluation
 information into fusion inputs.
 
-## Building a real manifest
+## Manifests built for this project
 
-1. Confirm access, licences and the official partitions for every corpus involved
-   (ASVspoof 2019 LA/PA, ASVspoof 2021 LA/PA/DF, SASV 2022, EmoSpoof-TTS, and an
-   emotion corpus such as RAVDESS or CREMA-D if separate emotion labels are needed).
-2. Map bona-fide/spoof labels, speaker identities and attack ids from the official
-   protocol files. Do not infer generator identity when the protocol does not
-   provide it.
-3. Decide how emotion labels are obtained. A corpus without emotion annotations
-   does not supply them; using an emotion classifier on unlabelled audio turns the
-   evaluation of emotion conditioning into an evaluation of that classifier's
-   errors, which must be reported as such.
-4. Keep splits speaker-disjoint unless the protocol says otherwise, and make the
-   held-out generator/emotion set explicit in the manifest `notes`.
-5. Run `easv audit --manifest <file> --out results/audit` and resolve errors before
-   scoring anything.
-6. Publish the split *procedure* (not restricted audio) so the evaluation is
-   reproducible.
+All three were produced by the builders in `scripts/` and audited with `easv audit`:
+
+| manifest | rows | builder | contents |
+|---|---:|---|---|
+| `m_esd_real.csv` | 17,900 | `build_manifests.py esd` | 17,500 ESD English targets (10 speakers × 5 emotions × 350) + 400 derived cross-speaker nontargets |
+| `m_emospoof.csv` | 36,000 | `build_manifests.py emospoof` | clones from StyleTTS2, F5-TTS and CosyVoice; emotion from the generator's folder tree; `attack` = generator |
+| `merged_manifest.csv` | **53,900** | `merge_manifests.py` | the two above with the generator split demoted to the ESD speaker split (4/2/4), so every split has all three generators |
+| `m_asvspoof_la.csv` | 25,580 | `build_manifests.py asvspoof` | ASVspoof 2019 LA train only (2,580 bona fide, 22,800 spoof, 200 derived nontargets) |
+
+`easv audit` on the merged manifest returns **0 errors and 4 warnings**: speaker
+overlap for the derived nontarget rows, and generator overlap because all three
+generators appear in every split. The second is intentional in a corpus this size;
+the leave-one-generator-out test is implemented by excluding the generator from
+countermeasure *training* (`train_cm_indomain.py --holdout-attack`), not by removing
+it from the manifest.
+
+Two rules from the ingestion checklist still deserve stating, because they shaped
+these files:
+
+* **Generator identity is never inferred.** `attack` comes from the EmoSpoof folder
+  tree or the LA protocol's system column; where the protocol does not disclose the
+  source voice, the row says so in `notes` instead of guessing.
+* **Emotion labels are ground truth, not predictions.** The emotion *probabilities*
+  used by fusion come from the SER producer and live in the score file; the
+  manifest's `emotion` column is used for splits, breakdowns and audit only.
+
+## Open data issues
+
+* **ESD licence.** The audio came from a public Hugging Face mirror; a mirror is a
+  distribution route, not a rights grant. The ESD research-licence form was never
+  submitted ([draft](../docs/ESD_LICENCE_EMAIL.md)), so this must be resolved before
+  publishing beyond the course report.
+* **No pinned corpus manifest.** The Zenodo md5s from the download campaign are in
+  [docs/PROGRESS_LOG.md](../docs/PROGRESS_LOG.md), but the Hugging Face parquet
+  shards used for the three generators and for LA are not checksummed or version
+  pinned. A rerun months later may not get identical bytes.
+* **ASVspoof 2019 evaluation partition and SASV 2022 protocols** were never
+  fetched, so no published-baseline reproduction exists.
 
 ## Example
 

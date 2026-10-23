@@ -3,6 +3,15 @@
 # Frozen before the first test-split report; changing a hyperparameter after
 # seeing test numbers invalidates the comparison. Two of the five arms are
 # required ablations (no-emotion, and capacity control).
+#
+# Documentation-only edit on 2026-10-23: the provenance note was rewritten when
+# the third generator (StyleTTS2) arrived and the CM regime changed. No model,
+# training or threshold value was touched, so the reported comparisons remain
+# comparable; the one thing that is post hoc is the choice of generalisation
+# track, which docs/PROTOCOL.md section 6 records explicitly.
+#
+# This config is shared by all four real regimes (in-domain, LA-pretrained
+# AASIST, F5-held-out, StyleTTS2-held-out); only the CM score file differs.
 seed: 7
 
 splits:

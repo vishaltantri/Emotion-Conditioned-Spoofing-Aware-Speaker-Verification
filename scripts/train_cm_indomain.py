@@ -1,19 +1,21 @@
 """In-domain CM (countermeasure) trained on the real manifest's train split.
 
 The LA-trained AASIST checkpoint transfers poorly to EmoSpoof-TTS clones
-(CM-EER ~51 %, see docs/PROGRESS_LOG.md), and the ASVspoof 2019 LA corpus cannot
-be extracted on this volume yet. This script trains a small spectrogram CNN
-countermeasure **on the corpus at hand** so the fusion stage has a usable CM:
+(CM-EER 50.8 %, see docs/REAL_RESULTS.md). This script trains a small spectrogram
+CNN countermeasure **on the corpus at hand** so the fusion stage has a usable CM:
 
 * bona fide  = ESD English targets/nontargets (train-split speakers only),
 * spoof      = EmoSpoof-TTS clones (same split, so speakers stay disjoint),
 * model      = 4-block log-mel CNN, global mean+max pooling, one logit,
 * selection  = early stopping on dev CM-EER, never on test.
 
-Consequences, stated in the output and the report: the CM is **in-domain** (it
-knows these two generators), so its EER is optimistic and says nothing about
-unseen attack systems. Cross-generator generalisation becomes testable only when
-the StyleTTS2 subset lands.
+Consequences, stated in the output and the report: without ``--holdout-attack``
+the CM is **in-domain** (it knows every generator in the manifest), so its EER is
+optimistic and says nothing about unseen attack systems. With
+``--holdout-attack <generator>`` that generator is excluded from training and
+from dev-based early stopping, which turns the run into the cross-generator
+generalisation test used for the headline results (0.09 % in-domain, 6.27 % on
+held-out F5-TTS, 2.50 % on held-out StyleTTS2).
 
 Outputs `trial_id,cm_score` for every trial (higher = more bona fide), a JSON
 metrics file and the model state dict.

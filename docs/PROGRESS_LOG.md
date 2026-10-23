@@ -409,3 +409,47 @@ Open items, ordered by how much they would change a conclusion:
 9. **Reproducibility loose ends.** `run_real_pipeline.sh` does not encode the
    headline holdout regime or the LA training; `results/` is git-ignored; there is
    no corpus checksum/licence table; the repository has no LICENSE file and no CI.
+
+### Documentation truth pass (same day, second pass)
+
+Every document was re-read against the executed state and corrected where it was
+false, not just stale-in-tone:
+
+* **Report DOCX.** Abstract replaced (the old one stated that no real corpus,
+  backend or result existed) with a 183-word summary of the measured findings, still
+  inside the 150-200 word requirement. Section 4.1 now reports 79 tests and points to
+  the real execution; the appendix lists the commands that produced the reported
+  numbers instead of only the synthetic demo; the conclusion and future-work
+  paragraphs describe what is actually open (held-out emotion, pre-registration,
+  ablations, seeds, published baseline, LA eval partition, licence). A duplicated
+  cross-generator paragraph left by a guard bug was removed. The contents table was
+  a static table, not a Word field, so its page numbers had gone stale when the
+  real-data text was added; chapters 5, references and appendix were re-pointed from
+  the added word count (~5 pages for chapter 4). **These three numbers are estimates
+  until the file is opened in Word and the pagination confirmed.**
+* **README.md.** "Not implemented" listed things that are now implemented (real data,
+  ECAPA/AASIST training) and omitted the things that actually remain; rewritten,
+  including a licence caveat and the correct two-environment requirement.
+* **docs/IMPLEMENTATION_PLAN.md** and **docs/REMAINING_WORK_PLAN.md** were rewritten
+  from "not started" plans into status documents: what each stage produced, its
+  measured outcome, and what is still open. The old plan's wrong assumption that a
+  Hugging Face mirror resolves the ESD licence was corrected.
+* **docs/NOVELTY_MATRIX.md** header no longer claims every cell is an unverified TODO;
+  the checklist now records which gate items are closed and which are not, and the
+  GCCE 2023 record (which had lost its heading and merged into the Zhao entry) was
+  repaired.
+* **directory READMEs.** `results/` documents every real run and its artifacts (not
+  only the demo); `data_manifests/` lists the manifests actually built, the 0-error
+  audit and the licence/checksum gaps; `paper/` and `figures/` state that the course
+  report is the current write-up and that no manuscript or figure set exists.
+* **WORK_COMPLETION_AUDIT.md** is now explicitly labelled as the 2026-10-21 snapshot,
+  with the superseded claims marked closed.
+* **script docstrings and generated text.** `summarize_real_scores.py` no longer emits
+  "no countermeasure scores exist yet" into its own report; the countermeasure and
+  in-domain trainer docstrings no longer say the LA corpus cannot be extracted or that
+  cross-generator evaluation is untestable; `run_real_pipeline.sh` states that it does
+  not build the headline regime; `configs/real_run.yaml` records that only its
+  provenance text was edited after the run, and the SASV template is marked unused.
+
+Nothing in `src/easv/` changed: its docstrings already described the score-level
+contract accurately, and all 79 tests still pass.

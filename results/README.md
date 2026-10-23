@@ -1,22 +1,47 @@
 # Results
 
-Generated output lives here and is git-ignored except this file. Each run writes:
+Generated output lives here and is git-ignored except this file: the reports record
+absolute corpus paths and per-trial audio identities, so they stay out of version
+control. Every number quoted in [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md) and
+in the course report comes from this directory.
+
+Each evaluation run writes:
 
 | file | contents |
 |---|---|
 | `results.json` | full machine-readable report: config snapshot, split counts, component baselines, per-model metrics, thresholds, bootstrap intervals, paired comparisons, breakdowns, gate weights, audit findings, caveats |
 | `results.md` | human-readable tables rendered from the same payload |
-| `test_trial_scores.csv` | per-trial test scores for every model (error analysis) |
+| `test_trial_scores.csv` | per-trial test scores for every model, keyed by `trial_id` (error analysis and arm-vs-arm comparisons) |
 | `models/<model>.json` | fitted fusion parameters, scalers and hyperparameters, loadable with `easv predict` |
 | `audit.json`, `audit.md` | written by `easv audit` when `--out` is given |
 
-Reproduce the demo:
+## What is in here
+
+| path | contents |
+|---|---|
+| `demo/`, `abl_far/`, `abl_layer/`, `abl_no_unc/`, `verify/` | synthetic runs (`provenance.kind = synthetic`). They validate the pipeline, the ablation switches and the threshold policies; their numbers are not research results. |
+| `real/run1` | two-generator corpus, in-domain countermeasure (Regime A) |
+| `real/run2_oodcm` | two-generator corpus, LA-pretrained AASIST (Regime B) |
+| `real/run3_crossgen` | two-generator corpus, F5-TTS held out (Regime C) |
+| `real/run4_3gen_crossgen` | **headline**: three-generator corpus, StyleTTS2 held out (Regime D), plus `paired_*.json` arm-vs-arm contrasts |
+| `real/asv_summary.{json,md}` | ASV component summary: SV-EER and spoof acceptance by split, emotion and generator |
+| `e2e/` | real manifests (`merged_manifest.csv`, 53,900 trials), LA manifest, and audit reports |
+
+The corpora themselves are outside the repository (see
+[data_manifests/README.md](../data_manifests/README.md)); the score CSVs
+(`scores_asv_merged.csv`, `scores_ser_merged.csv`, `scores_combined_*.csv` and the
+countermeasure score files) live next to them under `$DATA_ROOT/real/`.
+
+## Reproducing
 
 ```bash
+# pipeline smoke test (synthetic, seconds)
 easv demo --out results/demo --config configs/demo.yaml
+
+# real runs: corpora and score producers first, then
+DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh
 ```
 
-Synthetic runs are labelled twice — `provenance.kind = synthetic` in the JSON and a
-`Caveat` line in the Markdown — because the demo's numbers validate the pipeline,
-not the research hypothesis. Real runs must record dataset versions, licences and
-how emotion labels were obtained (`--set provenance.kind=real --set provenance.note=...`).
+The headline regime needs one extra step because it holds a generator out of
+countermeasure training; the exact command sequence is in
+[docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md) under "Reproduce".

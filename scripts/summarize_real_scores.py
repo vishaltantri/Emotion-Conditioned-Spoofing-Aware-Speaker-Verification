@@ -6,8 +6,9 @@ The merged real manifest joins three kinds of trials onto one score file:
 * ``nontarget`` — bona fide speech presented as another speaker (derived),
 * ``spoof``     — EmoSpoof-TTS clones presented as the cloned speaker.
 
-Without countermeasure scores a full SASV-EER is not definable, but two
-quantities are, and they are the ones that motivate a countermeasure at all:
+This script reads only the ASV scores on purpose. Two component quantities are
+definable without a countermeasure, and they are the ones that motivate one at
+all:
 
 1. **SV-EER** over target vs nontarget bona fide trials — how well the speaker
    front-end separates genuine speakers on emotional speech.
@@ -19,6 +20,11 @@ quantities are, and they are the ones that motivate a countermeasure at all:
 Score direction is the project convention: `speaker_score`, higher = more like
 the claimed speaker. Thresholds come from dev only; test is reported, never used
 to choose anything.
+
+This is a component summary, not a SASV result: SASV-EER, the fusion ladder and
+the countermeasure regimes come from ``easv evaluate`` and are recorded in
+``docs/REAL_RESULTS.md``. It is kept separate because it answers a different
+question — how vulnerable is the speaker front-end, and where.
 
 Usage:
     .venv/bin/python scripts/summarize_real_scores.py \
@@ -174,9 +180,10 @@ def main() -> None:
     bf = summary["bona_fide_test"]
     lines += ["", f"Bona fide test targets accepted: {pct(bf['accept_rate'])} "
                   f"of {bf['n']} (mean score {bf['mean_score']:+.4f}).",
-              "", "Caveat: no countermeasure scores exist yet, so this is the ASV "
-              "vulnerability that motivates emotion-conditioned fusion — not a "
-              "SASV-EER result.",
+              "", "Caveat: this is the component-level ASV vulnerability that "
+              "motivates the countermeasure, not an integrated SASV result. "
+              "SASV-EER and the fusion ladder are reported in "
+              "docs/REAL_RESULTS.md.",
               ""]
     args.out.with_suffix(".md").write_text("\n".join(lines), encoding="utf-8")
     print("\n".join(lines))

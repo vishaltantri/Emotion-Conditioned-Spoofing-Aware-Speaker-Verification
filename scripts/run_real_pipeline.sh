@@ -5,6 +5,13 @@
 # download campaign): ESD English under $D/esd and EmoSpoof-TTS generators under
 # $D/emospoof. Every stage is resumable; re-running skips completed work.
 #
+# Scope: this script builds the in-domain CM arm (CM=indomain) or the
+# LA-pretrained AASIST arm (CM=aasist). It does NOT build the reported headline
+# regime, which trains the CM with one generator held out, combines the scores
+# and evaluates into results/real/run4_3gen_crossgen; nor does it train AASIST on
+# ASVspoof 2019 LA. Both are separate documented commands, listed under
+# "Reproduce" in docs/REAL_RESULTS.md.
+#
 # Env overrides: DATA_ROOT (default /home/vct/data/easv), DEVICE (cuda|cpu),
 #                OUT (evaluation output dir), CM (indomain|aasist)
 set -euo pipefail

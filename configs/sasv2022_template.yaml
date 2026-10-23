@@ -1,6 +1,10 @@
-# Template for a real evaluation. Fill in the split names used by your manifest,
-# confirm dataset licences, and lock the protocol (docs/PROTOCOL.md) before
-# looking at test metrics. Test-set tuning invalidates the result.
+# Template for a real evaluation; NOT used by the reported runs, which use
+# configs/real_run.yaml. Keep it for a fresh corpus or a new benchmark.
+#
+# Fill in the split names used by your manifest, confirm dataset licences, and
+# lock the protocol (docs/PROTOCOL.md) before looking at test metrics. The
+# provenance note is a required field: a run without dataset version, licence and
+# emotion-label provenance cannot be cited.
 seed: 7
 
 splits:
@@ -47,4 +51,6 @@ report:
 
 provenance:
   kind: real
+  # Fill this in; the placeholder is deliberate and must not survive into a
+  # reported run (the executed runs record theirs in configs/real_run.yaml).
   note: "TODO: record dataset versions, licences, and how emotion labels were obtained."

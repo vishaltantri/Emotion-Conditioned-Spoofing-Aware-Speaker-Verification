@@ -15,10 +15,12 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > [docs/REMAINING_WORK_PLAN.md](docs/REMAINING_WORK_PLAN.md) and the roadmap is
 > [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 >
-> Verified so far: 79 tests, novelty gate closed (conditional GO, 4+1 papers read
-> at recorded depth), a 53,900-trial real merged manifest (17,900 ESD bona fide +
+> Verified so far: 79 tests, the novelty gate conditionally closed (4+1 papers read
+> at recorded depth; published-baseline reproduction and a held-out-emotion test
+> still open), a 53,900-trial real merged manifest (17,900 ESD bona fide +
 > 36,000 EmoSpoof-TTS clones from StyleTTS2, F5-TTS and CosyVoice, `easv audit`
-> clean with 0 errors), real ASV (ECAPA-TDNN) and SER (wav2vec2-superb-ER)
+> clean with 0 errors and 4 documented warnings), real ASV (ECAPA-TDNN) and SER
+> (wav2vec2-superb-ER)
 > producers over every trial, and a working CUDA torch stack
 > (`2.14.1+cu130`, RTX 3050 6 GB) built from offline wheels.
 >
@@ -245,14 +247,12 @@ Seven resumable stages: manifests → audit (hard stop on errors) → ASV → SE
 `results/real/<run>/results.md`; measured numbers and caveats are summarised in
 [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 
-```bash
-# three-generator corpus, cross-generator CM (the headline run)
-DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh
-.venv/bin/python scripts/train_cm_indomain.py --manifest results/e2e/merged_manifest.csv \
-    --out-dir $DATA_ROOT/real/cm_holdout_styletts2 --holdout-attack styletts2
-.venv/bin/python scripts/compare_arms.py --results results/real/run4_3gen_crossgen \
-    --manifest results/e2e/merged_manifest.csv --a emotion_gated --b emotion_interaction
-```
+The **headline three-generator regime** adds one training step (the countermeasure
+that never sees StyleTTS2), one score combination and one evaluation on top of that
+pipeline; the exact commands are under "Reproduce" in
+[docs/REAL_RESULTS.md](docs/REAL_RESULTS.md#reproduce). Evaluated reports and
+per-trial scores land in `results/real/`, which is git-ignored because it encodes
+corpus paths.
 
 ## Research-integrity rules encoded in the code
 
@@ -266,7 +266,21 @@ DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh
 
 ## Environment
 
-Python ≥ 3.10 with `numpy`, `scipy`, `PyYAML` (and `pytest` for tests). Models are
-trained with L-BFGS (logistic arms) and Adam (gated arm) on CPU; the demo runs in
-seconds. No GPU or audio dependencies are required yet, and no dataset or model
-weights are redistributed here.
+Two virtual environments, both real requirements for reproduction:
+
+* `.venv` — Python ≥ 3.10 with `numpy`, `scipy`, `PyYAML`, `pytest` and `python-docx`
+  for the analysis package, tests and the report updates. Fusion models train in
+  seconds on CPU (L-BFGS for the logistic arms, Adam for the gated arm).
+* `.venv-rm` — torch 2.14 + cu130, torchaudio, speechbrain and transformers for the
+  audio score producers. `scripts/run_real_pipeline.sh` uses both. A 6 GB GPU was
+  enough for every model used here, including AASIST training under bf16 autocast.
+
+No audio, dataset archives or model weights are redistributed in this repository;
+the corpora live outside it and the download routes are documented in
+[docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md).
+
+**Licence caveat:** the ESD bona fide audio was fetched from a public Hugging Face
+mirror, which is a distribution route rather than a rights grant. The ESD research
+licence form was never submitted
+([draft](docs/ESD_LICENCE_EMAIL.md)), so this must be resolved before publishing
+beyond the course report.
