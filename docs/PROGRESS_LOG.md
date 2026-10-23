@@ -1,4 +1,4 @@
-# Execution progress log (2026-10-21 → 2026-10-22)
+# Execution progress log (2026-10-21 → 2026-10-23)
 
 This log complements [REMAINING_WORK_PLAN.md](REMAINING_WORK_PLAN.md): it records
 what has actually been executed since the initial evaluation-core commit, what is
@@ -18,13 +18,13 @@ exist so far live in `results/e2e/` and are deliberately uncommitted.
 | ESD manifest built + audited | **done** — `results/e2e/m_esd_real.csv` (17,660 rows), `easv audit` clean |
 | ASV producer (SpeechBrain ECAPA-TDNN embeddings, cosine) | **done on real ESD audio** → `real/scores_asv_esd.csv` |
 | SER producer (wav2vec2-base-superb-ER softmax → emo_* cols) | **done on real ESD audio** → `real/scores_ser_esd.csv` |
-| EmoSpoof-TTS download (StyleTTS2 2.9 GB → F5-TTS 1.1 GB → CosyVoice 2.7 GB) | **2 of 3 landed** — F5-TTS + CosyVoice extracted (12,000 wavs each); StyleTTS2 re-fetch running after the rescue loop deleted its finished tree |
-| EmoSpoof manifest + merged manifest + audit | **done** — 24,000 EmoSpoof rows, 41,900-row merged manifest, `easv audit` 0 errors / 4 warnings |
+| EmoSpoof-TTS download (StyleTTS2 2.9 GB → F5-TTS 1.1 GB → CosyVoice 2.7 GB) | **done** — all three generators on disk, 12,000 wavs each (StyleTTS2 via the Hugging Face parquet mirror) |
+| EmoSpoof manifest + merged manifest + audit | **done** — 36,000 EmoSpoof rows, 53,900-trial merged manifest, `easv audit` 0 errors / 4 warnings |
 | CUDA torch in the audio venv | **done** — `2.14.1+cu130`, `cuda.is_available()` True (RTX 3050 6 GB) |
-| ASV scores on the merged manifest | **running** — `real/scores_asv_merged.csv` |
-| ASVspoof 2019 LA download (7.6 GB, selective train/dev/protocols extract) | **blocked** — resumed parts came back mutually inconsistent under ENOSPC and were removed; extraction needs ~7.5 GB free |
-| AASIST CM training | **blocked** — no LA audio, no pretrained checkpoint |
-| Fusion on real scores | **blocked** on CM scores |
+| ASV scores on the merged manifest | **done** — 53,900 trials, `real/scores_asv_merged.csv` |
+| ASVspoof 2019 LA corpus | **done** — 25,380 train utterances from the HF parquet mirror (`la_train.parquet`, 1.59 GB) + official CM protocols |
+| AASIST CM training | **done** — LA-pretrained checkpoint scored (50.8 %), and AASIST retrained on LA train audio (see Pass 3) |
+| Fusion on real scores | **done** — four countermeasure regimes, `results/real/{run1,run2_oodcm,run3_crossgen,run4_3gen_crossgen}` |
 
 ## What was executed in this pass
 
@@ -248,3 +248,118 @@ they are the owner's, so they were left untouched.
 Recorded by the agent working on the owner's behalf; numbers quoted are read off
 `wc -l` of the manifest/score files above (17661 lines including header) and the
 running-process list at the time of writing.
+
+## Pass 3 (2026-10-23): three-generator corpus, ASVspoof LA, retrained countermeasure
+
+### How the two blocked corpora actually arrived
+
+Both downloads were capped at ~200 KB/s by their origin servers (Zenodo for
+EmoSpoof, Edinburgh DataShare for the 7.6 GB LA zip), which is roughly twelve
+hours per corpus. Public Hugging Face mirrors serve the same content at
+1.2–2 MB/s per connection and ~2 MB/s aggregate with four parallel streams, so
+both corpora were fetched from the mirrors instead
+([scripts/hf_fetch.sh](../scripts/hf_fetch.sh)):
+
+* EmoSpoof-TTS — 36,000 utterances across StyleTTS2, F5-TTS and CosyVoice in the
+  mirror's parquet shards. The `path` column preserves the original
+  `Generator/speaker/Emotion/utterance.wav` tree, so the StyleTTS2 subset
+  (shards 0–2) writes back to the layout `build_manifests.py emospoof` already
+  reads.
+* ASVspoof 2019 LA — only the train partition is mirrored
+  (`la_train.parquet`, 1.59 GB): 2,580 bona fide + 22,800 spoof utterances, which
+  is all an in-domain AASIST retrain needs, plus the official CM protocol files
+  from the DataShare archive. The eval partition was not needed and not fetched,
+  because the EASV corpus is the target domain and its own dev split selects
+  everything.
+
+[scripts/extract_hf_corpora.py](../scripts/extract_hf_corpora.py) converts the
+parquet back to the on-disk layouts, skipping files that already exist so an
+interrupted conversion resumes instead of restarting.
+
+### A real bug the LA data exposed
+
+`parse_cm_protocol_line` assumed the protocol column order
+`speaker - utterance label attack`, which is the order used in the *ASVspoof 2019
+evaluation plan* description but **not** in the distributed CM files. The real
+line is `LA_0079 LA_T_1138215 - - bonafide`, i.e. `speaker utterance - system
+label`. The old parser therefore returned `-` as every utterance id, so the
+builder pointed at `-.flac` for the whole corpus. The parser now locates the
+label field instead of trusting a position, keeps the attack id, and is pinned by
+[tests/test_build_manifests.py](../tests/test_build_manifests.py); the older
+synthetic fixture was corrected to the official column order as well.
+
+### Three-generator corpus and the cross-generator regime
+
+The merged manifest is now **53,900 trials** (17,900 ESD bona fide + 36,000
+clones, 12,000 per generator) with a 4/2/4 speaker split; `easv audit` reports
+0 errors and the same 4 expected warnings (cross-split nontarget derivations and
+all three generators present in every split). ASV and SER were rescored on the
+full manifest (53,900 rows each, 0 missing).
+
+The countermeasure for the headline regime is trained with StyleTTS2 excluded
+from training *and* from dev-based early stopping
+(`train_cm_indomain.py --holdout-attack styletts2`, 21,560 training trials). It
+reaches **1.60 % SPF-EER overall and 2.50 % on the unseen StyleTTS2 clones** —
+the third generator is detected at the same order of magnitude as the seen ones,
+which is the strongest countermeasure result in the project.
+
+Fusion on that corpus (`results/real/run4_3gen_crossgen`, thresholds from dev
+only): 27.12 % (speaker only), 2.27 % (linear), 2.51 % (additive), 2.09 %
+(interaction), **1.54 % (gated)** SASV-EER. The gated arm beats linear by
++0.68 pts (0.15–1.12, p=0.002); a paired contrast that the CLI does not run by
+default ([scripts/compare_arms.py](../scripts/compare_arms.py)) shows it also
+beats the interaction control by **+0.48 pts (0.06–0.99)** and the capacity
+control by +0.85 pts. So the proposed arm *is* the best model on the completed
+design — with one caveat that undercuts the mechanism claim: its learned gate
+weights are flat across emotions (speaker 4.02–4.05, CM 9.69–9.73; in the
+in-domain regime the five per-emotion weights agree to three decimals). The arm
+wins because of its decision function and calibration, not because it conditions
+on emotion.
+
+The ASV vulnerability also turned out to be generator-specific: at the dev
+threshold the ECAPA front-end accepts 59.0 % of CosyVoice clones and 51.5 % of
+F5-TTS clones but only **5.9 %** of StyleTTS2 clones (mean speaker score +0.256
+against +0.43–0.46), so the 38.8 % aggregate is not a property of "neural
+clones" in general. Audio for the StyleTTS2 subset was checked (16 kHz, ~2.8 s,
+same speaker distribution), so this is a property of that generator's output.
+
+### AASIST on ASVspoof 2019 LA
+
+Two attempts, and the first one is worth recording because it produced a
+plausible-looking but meaningless number:
+
+1. **Selecting the checkpoint on EASV dev.** The first run trained on LA train
+   and early-stopped on the EASV dev split (the target domain). Dev EER was best
+   at epoch 1 (39.8 %) and got worse, so "the best model" was an essentially
+   untrained network and its 40.8 % test EER measured the domain gap, not the
+   countermeasure. The artifacts are kept in
+   `real/cm_aasist_la_ongenv_selected` for reference.
+2. **Selecting on held-out LA speakers** (the reported run): 2 of 20 LA speakers
+   (2,576 utterances) are held out and only they choose the checkpoint; EASV dev
+   and test are then scored once as *transfer* numbers. Batch 24 OOMs on the
+   6 GB card, so the run uses batch 12 with bf16 autocast.
+
+Result: the retrained AASIST reaches **2.11 % EER on the held-out LA speakers**
+(epoch 3 of 3, 16,000 training utterances; epoch 1 was 9.47 %, epoch 2 2.97 %,
+so the model was still improving when the budget ran out). It is therefore a
+working LA countermeasure by any reasonable reading. On the EASV corpus the same
+model scores **49.4 % EER on dev and 43.8 % on test** — chance level, like the
+pretrained checkpoint's 50.8 %. The conclusion is unchanged and now has two
+supports: ASVspoof-2019 supervision, pretrained or retrained, does not describe
+these neural clones, whereas a log-mel countermeasure trained on two adjacent
+EmoSpoof generators detects the third at 2.50 % EER.
+
+No fusion regime was added for this countermeasure. With a chance-level CM the
+arm ladder reduces to Regime B (already reported with the pretrained
+checkpoint), and the EASV train-split scores needed for fitting the fusion arms
+were deliberately not produced: the component result answers the question the
+run was for.
+
+### What is left
+
+Nothing in the planned scope. The two follow-ups that would change conclusions
+are both ablations, not missing data: replacing the emotion features with a
+single SER-confidence scalar (to test whether the Regime B gain survives), and a
+capacity-matched gate (to test whether the Regime D gain is architecture or
+capacity). Both need a new frozen config and a fresh test report; neither is
+required to state the results above.

@@ -78,16 +78,25 @@ def _stable_split(speaker: str) -> str:
 def parse_cm_protocol_line(line: str):
     """Return (speaker_id, utterance_id, label, attack_id) or None.
 
-    ASVspoof 2019 CM protocol lines are space/tab separated with 5+ fields:
-    ``LA_0044 - LA_0044_0235 spoof A09`` or ``LA_0044 - LA_0044_0456 bonafide -``.
-    field 0 = speaker, field 2 = utterance id, field 3 = label, field 4 = attack.
+    The distributed 2019 LA CM protocol is ``speaker utt - system label``, e.g.
+    ``LA_0079 LA_T_1138215 - - bonafide`` or
+    ``LA_0022 LA_T_1202073 - A01 spoof``. Older docs in this project assumed
+    ``speaker - utt label attack``, which silently produced ``'-'`` utterance ids;
+    the parser therefore locates the label field rather than trusting a position.
+    Tabs or runs of spaces are both accepted.
     """
-    parts = line.split()
-    if len(parts) < 5:
+    parts = line.replace("\t", " ").split()
+    if len(parts) < 4:
         return None
-    speaker, utt, label, attack = parts[0], parts[2], parts[3], parts[4]
-    label = "bonafide" if label.startswith("bona") else label
-    attack = "-" if attack in ("-", "") else attack
+    lower = [p.lower() for p in parts]
+    label_idx = next((i for i, p in enumerate(lower)
+                      if p.startswith("bona") or p.startswith("spoof")), None)
+    if label_idx is None or label_idx < 2:
+        return None
+    speaker, utt = parts[0], parts[1]
+    label = "bonafide" if lower[label_idx].startswith("bona") else "spoof"
+    attack_parts = [p for p in parts[2:label_idx] if p not in ("-", "")]
+    attack = attack_parts[0] if attack_parts else "-"
     return speaker, utt, label, attack
 
 
@@ -108,7 +117,16 @@ def build_manifest_asvspoof(la_root: Path, out_csv: Path,
 
     for split_name in ("train", "dev"):
         proto_dir = la_root / "ASVspoof2019_LA_cm_protocols"
-        proto = proto_dir / f"ASVspoof2019.LA.cm.{split_name}.trl.txt"
+        # the distribution names the training protocol .trn and the trial lists
+        # .trl; accept either rather than hard-coding one spelling
+        proto = next((p for p in (
+            proto_dir / f"ASVspoof2019.LA.cm.{split_name}.trn.txt",
+            proto_dir / f"ASVspoof2019.LA.cm.{split_name}.trl.txt",
+            proto_dir / f"ASVspoof2019.LA.cm.{split_name}.trl",
+        ) if p.exists()), None)
+        if proto is None:
+            print(f"skip split '{split_name}': no CM protocol under {proto_dir}")
+            continue
         flac_dir = la_root / f"ASVspoof2019_LA_{split_name}" / "flac"
         bona: dict[str, str] = defaultdict(str)   # utt -> true speaker
         bona_by_spk: dict[str, list[str]] = defaultdict(list)

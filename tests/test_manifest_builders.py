@@ -40,12 +40,14 @@ def la_root_fixture(tmp_path: Path) -> Path:
         (root / f"ASVspoof2019_LA_{split}" / "flac").mkdir(parents=True)
         proto = (root / "ASVspoof2019_LA_cm_protocols"
                  / f"ASVspoof2019.LA.cm.{split}.trl.txt")
+        # Official 2019 LA CM column order: speaker utt - [system] label.
         lines = []
         for spk, i in (("LA_0011", range(2)), ("LA_0012", range(2))):
             for n in i:
-                lines.append(f"{spk} - {spk}_{n:04d} bonafide -\n")
-        lines.append("LA_0011 - LA_0123_9999 spoof A13\n")
-        lines.append("LA_0012 - LA_0124_8888 spoof A07\n")
+                utt = f"{spk}_{n:04d}"
+                lines.append(f"{spk} {utt} - - bonafide\n")
+        lines.append("LA_0011 LA_0123_9999 - A13 spoof\n")
+        lines.append("LA_0012 LA_0124_8888 - A07 spoof\n")
         proto.write_text("".join(lines), encoding="utf-8")
         for spk, i in (("LA_0011", range(2)), ("LA_0012", range(2))):
             for n in i:

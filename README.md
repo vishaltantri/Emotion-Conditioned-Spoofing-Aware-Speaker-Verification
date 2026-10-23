@@ -8,69 +8,61 @@ rejection of genuine speech?**
 The plan this repo implements is [Emotion_Aware_Speaker_Verification_Research_Plan.md](Emotion_Aware_Speaker_Verification_Research_Plan.md);
 the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verification-1.pdf](Emotion_Aware_Anti_Spoofing_Speaker_Verification-1.pdf).
 
-> **Status: research infrastructure — real-data stage started, not finished.**
-> The evaluation and fusion layer is implemented, tested, and now exercised on
-> real data. Progress beyond the commit history is tracked in
+> **Status: real-data evaluation complete on a three-generator corpus.**
+> The evaluation and fusion layer is implemented, tested, and exercised end to
+> end on real audio. Progress beyond the commit history is tracked in
 > [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md); the stage-by-stage plan is
 > [docs/REMAINING_WORK_PLAN.md](docs/REMAINING_WORK_PLAN.md) and the roadmap is
-> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md). No claim in this
-> repository about emotion-conditioned gains on real speech is supported yet.
+> [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 >
-> Verified so far: 66 tests, novelty gate closed (conditional GO, 4+1 papers read
-> at recorded depth), a 41,900-row real merged manifest
-> (17,900 ESD + 24,000 EmoSpoof, `easv audit` clean with 0 errors), real ASV
-> (ECAPA-TDNN) and SER (wav2vec2-superb-ER) producers run over all of ESD, and a
-> working CUDA torch stack (`2.14.1+cu130`, RTX 3050 6 GB) built from offline
-> wheels.
+> Verified so far: 79 tests, novelty gate closed (conditional GO, 4+1 papers read
+> at recorded depth), a 53,900-trial real merged manifest (17,900 ESD bona fide +
+> 36,000 EmoSpoof-TTS clones from StyleTTS2, F5-TTS and CosyVoice, `easv audit`
+> clean with 0 errors), real ASV (ECAPA-TDNN) and SER (wav2vec2-superb-ER)
+> producers over every trial, and a working CUDA torch stack
+> (`2.14.1+cu130`, RTX 3050 6 GB) built from offline wheels.
 >
-> **First real results.** On the held-out test split the ECAPA SV front-end
-> accepts 82.9 % of bona fide targets but also **55.2 % of EmoSpoof-TTS clones**
-> presented as the cloned speaker, emotion-dependent (angry 64.6 %, neutral
-> 61.7 %, sad 47.5 %, happy 47.2 %; per generator CosyVoice 59.0 %, F5-TTS
-> 51.5 %). Standard fusion removes that vulnerability when the countermeasure
-> works: SASV-EER falls from **33.1 % (ASV only) to 0.60 % (linear fusion)**.
-> The LA-pretrained AASIST does **not** transfer to these clones (SPF-EER
-> 50.8 %), and with an in-domain CM no emotion-conditioned arm beats plain
-> fusion (gated arm is 0.14 pts worse, p=0.98). With the failing CM the emotion
-> arms gain ~5.5 pts, but SER is confidently wrong on clones (30.7 % accuracy at
-> 0.83 confidence), so that gain is most likely a spoof cue, not emotion
-> conditioning. Under a leave-one-generator-out countermeasure (F5-TTS never seen
-> in training) the CM still detects held-out clones at 6.27 % EER — two orders
-> better than the LA-pretrained AASIST — and the fusion arms land at 3.8–4.2 %
-> SASV-EER, where the gated arm's +0.27 pt edge over linear has a CI including
-> zero. Full tables, CIs and caveats: [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
->
-> Still unfinished: the StyleTTS2 generator of EmoSpoof-TTS (re-fetch running),
-> ASVspoof 2019 LA extraction (blocked on disk space, not on code), AASIST CM
-> training, and the first real fusion evaluation — the latter two need CM scores,
-> which need LA.
+> **Headline results.** On the held-out test split the ECAPA SV front-end accepts
+> 82.9 % of bona fide targets and **38.8 % of clones presented as the cloned
+> speaker** — but the rate is generator-specific: CosyVoice 59.0 %, F5-TTS
+> 51.5 %, StyleTTS2 5.9 %. Standard fusion removes the vulnerability when the
+> countermeasure works: SASV-EER falls from **33.1 % (ASV only) to 0.60 %** on the
+> two-generator corpus. The LA-pretrained AASIST does **not** transfer to these
+> clones (SPF-EER 50.8 %), while a log-mel CM trained on two generators detects
+> the third, unseen one at **2.50 %** EER. On the complete three-generator design
+> with that countermeasure the proposed gated arm is the best model
+> (**1.54 %** SASV-EER vs 2.27 % linear), and its edge over the interaction
+> control (+0.48 pts, CI 0.06–0.99) and the capacity control (+0.85 pts) is
+> significant — but its learned gate weights are flat across emotions, so the
+> gain cannot be attributed to emotion conditioning, and with an in-domain CM it
+> is still 0.14 pts worse than plain fusion. With a failing CM the emotion arms
+> gain ~5.5 pts, but SER is confidently wrong on clones (32.8 % accuracy at 0.82
+> confidence), so that gain is most likely a spoof cue. Full tables, CIs and
+> caveats: [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 >
 > **Stage status at a glance**
 >
 > | stage | state |
 > |---|---|
-> | Evaluation core (manifest/audit/fusion/metrics/CLI, 66 tests) | done |
+> | Evaluation core (manifest/audit/fusion/metrics/CLI, 79 tests) | done |
 > | ESD English subset + manifest (17,900 rows) | done |
-> | EmoSpoof-TTS: F5-TTS + CosyVoice (24,000 wavs), manifest | done |
-> | EmoSpoof-TTS: StyleTTS2 generator | missing on disk — re-fetch pending |
-> | Merged real manifest + audit | done (0 errors, 4 warnings) |
-> | ASV scores on ESD (17,660 trials) | done |
-> | SER scores on ESD (17,660 trials) | done |
-> | ASV scores on the merged (ESD + spoof) manifest | done — 41,900 trials |
-> | Real ASV summary on the merged manifest | done — [scripts/summarize_real_scores.py](scripts/summarize_real_scores.py), 55.2 % spoof acceptance on test |
-> | CM scores (AASIST-LA, in-domain CNN) | done — 41,900 trials each; AASIST 50.8 % (no transfer), in-domain CNN 0.09 % |
-> | SER scores on the merged manifest | done — 41,900 trials |
-> | **Real SASV fusion evaluation, 5 arms, three CM regimes** | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
-| Cross-generator CM (leave-one-generator-out) | done — held-out F5-TTS at 6.27 % CM-EER |
-> | ASVspoof 2019 LA | blocked — inconsistent parts removed under ENOSPC; extraction needs ~7.5 GB free |
-> | EmoSpoof StyleTTS2 generator | re-fetching (third generator, cross-generator test) |
+> | EmoSpoof-TTS: all three generators (36,000 wavs), manifest | done |
+> | Merged real manifest + audit | done — 53,900 trials, 0 errors |
+> | ASV + SER scores on every trial | done — 53,900 rows each |
+> | ASV vulnerability summary | done — [scripts/summarize_real_scores.py](scripts/summarize_real_scores.py), 38.8 % spoof acceptance on test |
+> | CM scores (AASIST-LA, in-domain CNN, cross-generator CNN) | done — AASIST 50.8 % (no transfer), in-domain 0.09 %, StyleTTS2-held-out 1.60 % |
+> | Real SASV fusion, 5 arms × 4 CM regimes | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+> | Three-generator cross-generator evaluation | done — `results/real/run4_3gen_crossgen` |
+> | Paired arm-vs-arm contrasts | done — [scripts/compare_arms.py](scripts/compare_arms.py) |
+> | ASVspoof 2019 LA corpus | done — 25,380 train utterances via HF mirror |
+> | AASIST retrained on LA (in-domain) | done — [scripts/train_cm_aasist_la.py](scripts/train_cm_aasist_la.py); 2.11 % EER on held-out LA speakers, 43.8 % on EASV test |
 
 ## Quickstart
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python -m pytest -q                       # 65 tests, ~3 s
+.venv/bin/python -m pytest -q                       # 79 tests, ~4 s
 .venv/bin/easv demo --out results/demo --config configs/demo.yaml
 ```
 
@@ -153,7 +145,7 @@ easv manifest-template --out data_manifests/example.csv
 | `data_manifests/` | manifest/schema documentation; real manifests are kept out of version control |
 | `results/` | generated reports, per-trial scores and fitted models (git-ignored except `README.md`) |
 | `docs/` | implementation plan, protocol, novelty gate, progress log, real results, remaining-work plan |
-| `scripts/` | manifest builders, ASV/SER/CM score producers, score combiner, in-domain CM trainer, `run_real_pipeline.sh` (end-to-end entry point) |
+| `scripts/` | manifest builders, ASV/SER/CM score producers, score combiner, in-domain and LA CM trainers, arm-vs-arm comparison, corpus fetchers (`hf_fetch.sh`, `extract_hf_corpora.py`), `run_real_pipeline.sh` (end-to-end entry point) |
 | `paper/`, `figures/` | placeholders for the manuscript and figures |
 
 ## What is implemented vs not
@@ -167,7 +159,7 @@ Implemented and tested:
 * metric suite with explicit acceptance conventions and configurable cost models;
 * the proposed gated fusion model plus its ablation arms, with JSON checkpoints;
 * grouped and paired bootstrap statistics; per-emotion and per-attack breakdowns;
-* CLI, synthetic demo, 65 tests.
+* CLI, synthetic demo, 79 tests.
 
 Not implemented (deliberately, see the plan's novelty gate):
 
@@ -179,7 +171,7 @@ Not implemented (deliberately, see the plan's novelty gate):
 * the real-dataset stage of the pipeline (see [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md));
 * the manuscript.
 
-### Real-data stage (in progress)
+### Real-data stage (complete)
 
 * [x] Offline wheel stack for the audio venv (`.venv-rm`, 69 wheels fetched +
   verified offline install with import checks) — see
@@ -192,28 +184,35 @@ Not implemented (deliberately, see the plan's novelty gate):
   `emo_*` softmax columns) — both completed on the full manifest;
 * [x] EmoSpoof-TTS downloads, checksum-gated single-stream rescue
   ([scripts/dataset_rescue.sh](scripts/dataset_rescue.sh)) after the segmented
-  downloader proved unreliable on the Zenodo-hosted archive:
-  * StyleTTS2 (2.93 GB) — md5-verified, CRC-valid, extracted; the extracted
-    directory did **not** survive on disk and is missing (re-fetch pending);
-  * F5-TTS (1.09 GB) — md5-verified, extracted, 12,000 wavs;
-  * CosyVoice (2.67 GB) — md5-verified, extracted, 12,000 wavs;
-* [x] EmoSpoof manifest (`scripts/build_manifests.py emospoof`, 24,000 rows) and
-  merged real manifest with ESD (`scripts/merge_manifests.py`, 41,900 rows);
-  `easv audit` → 0 errors, 4 warnings (cross-speaker nontarget rows and both
-  available generators present in every split);
+  downloader proved unreliable on the Zenodo-hosted archive; all three
+  generators are complete on disk (12,000 wavs each):
+  * F5-TTS (1.09 GB) — md5-verified, extracted;
+  * CosyVoice (2.67 GB) — md5-verified, extracted;
+  * StyleTTS2 — delivered from the public Hugging Face parquet mirror
+    ([scripts/hf_fetch.sh](scripts/hf_fetch.sh) +
+    [scripts/extract_hf_corpora.py](scripts/extract_hf_corpora.py)) after Zenodo
+    truncated the 2.9 GB archive twice; the mirror's `path` column preserves the
+    original generator/speaker/emotion tree;
+* [x] EmoSpoof manifest (`scripts/build_manifests.py emospoof`, 36,000 rows) and
+  merged real manifest with ESD (`scripts/merge_manifests.py`, 53,900 rows);
+  `easv audit` → 0 errors, 4 warnings (cross-speaker nontarget rows and all
+  generators present in every split);
 * [x] Offline CUDA torch for the audio venv: `torch 2.14.1+cu130` imports and
   `torch.cuda.is_available()` is `True` on the RTX 3050, after installing the
   NVIDIA runtime wheels (cublas, cudnn, cuda_runtime, nvrtc, nvjitlink, cufft,
   curand, cusolver, cusparse, nccl, nvtx, cupti, cufile, cusparselt, nvshmem);
-* [ ] StyleTTS2 generator re-fetch to complete the three-generator design —
-  running; the earlier tree was deleted by the rescue loop's unconditional
-  `rm -rf` after *every* archive, now fixed and guarded by an extracted-tree
-  check;
-* [ ] ASVspoof 2019 LA download → selective train/dev/protocols extract
-  (download 6.5/7.6 GB complete; extraction needs ~7.5 GB free and the volume has
-  1.8 GB — disk, not code, is the blocker);
-* [ ] AASIST CM training ([scripts/EASIST_LA.conf](scripts/EASIST_LA.conf)) once LA audio lands;
-* [ ] fusion evaluation on real scores (needs the CM scores above).
+* [x] StyleTTS2 generator present, so the three-generator design is complete and
+  a leave-one-generator-out split (StyleTTS2 held out) is possible;
+* [x] ASVspoof 2019 LA train corpus: 25,380 utterances fetched from the public
+  parquet mirror and extracted with the official CM protocols
+  ([scripts/extract_hf_corpora.py](scripts/extract_hf_corpora.py));
+* [x] AASIST retrained on LA
+  ([scripts/train_cm_aasist_la.py](scripts/train_cm_aasist_la.py)): checkpoint
+  selected on a speaker-disjoint LA dev split (2.11 % EER on held-out LA
+  speakers), then scored once on the EASV manifest (43.8 % test EER), which
+  confirms that ASVspoof-2019 supervision does not describe these clones;
+* [x] Fusion evaluation on real scores under four countermeasure regimes
+  (in-domain, LA-pretrained AASIST, F5-held-out, StyleTTS2-held-out).
 
 ## Reproducing the real run
 
@@ -230,6 +229,15 @@ Seven resumable stages: manifests → audit (hard stop on errors) → ASV → SE
 → score combination → fusion evaluation and ASV summary. Results land in
 `results/real/<run>/results.md`; measured numbers and caveats are summarised in
 [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
+
+```bash
+# three-generator corpus, cross-generator CM (the headline run)
+DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh
+.venv/bin/python scripts/train_cm_indomain.py --manifest results/e2e/merged_manifest.csv \
+    --out-dir $DATA_ROOT/real/cm_holdout_styletts2 --holdout-attack styletts2
+.venv/bin/python scripts/compare_arms.py --results results/real/run4_3gen_crossgen \
+    --manifest results/e2e/merged_manifest.csv --a emotion_gated --b emotion_interaction
+```
 
 ## Research-integrity rules encoded in the code
 

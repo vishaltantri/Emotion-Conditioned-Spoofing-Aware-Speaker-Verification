@@ -1,22 +1,42 @@
-# First real results: EmoSpoof-TTS clones vs ESD bona fide
+# Real results: EmoSpoof-TTS clones vs ESD bona fide
 
 Provenance: **real**. Corpus: ESD English speakers 0011–0020 (bona fide, emotion
-labels from the corpus folders) + EmoSpoof-TTS F5-TTS and CosyVoice subsets
-(spoof clones, emotion labels from the generator archives; 12,000 wavs each).
-Speaker-disjoint 4/2/4 split. 41,900 trials in total.
+labels from the corpus folders; 17,900 trials) + EmoSpoof-TTS clones from three
+neural generators — StyleTTS2, F5-TTS and CosyVoice (spoof, emotion labels from
+the generator archives; 12,000 wavs each, 36,000 clones). Speaker-disjoint 4/2/4
+split, **53,900 trials**: train 21,560, dev 10,780, test 21,560. Every threshold
+and every model choice comes from train/dev; the test split is reported once.
 
 Component scores, all measured on this data:
 
-| component | model | EER (test) | notes |
+| component | model | test result | notes |
 |---|---|---:|---|
-| ASV | SpeechBrain ECAPA-TDNN, cosine to train-split centroid | **3.12 %** (SV-EER) | accepts 82.9 % of bona fide targets, **55.2 % of clones** |
-| SER | wav2vec2-base-superb-er, 4-way softmax | 41.8 % acc. on bona fide, 30.7 % on clones | clones saturate it: mean max prob 0.83 while wrong |
-| CM (in-domain) | log-mel CNN, train split only | **0.09 %** (SPF-EER) | optimistic by construction: sees these two generators during training |
+| ASV | SpeechBrain ECAPA-TDNN, cosine to train-split centroid | **3.12 %** (SV-EER) | accepts 82.9 % of bona fide targets, **38.8 % of clones** — but see the per-generator split below |
+| SER | wav2vec2-base-superb-er, 4-way softmax | 41.2 % acc. on bona fide, 32.8 % on clones | confidently wrong on clones: mean max prob 0.825 while 32.8 % correct |
+| CM (in-domain) | log-mel CNN, train split only | **0.09 %** (SPF-EER) | optimistic by construction: sees both generators during training |
+| CM (cross-generator) | log-mel CNN, StyleTTS2 held out | 1.60 % overall, **2.50 %** on the unseen generator | the CM used in the headline three-generator run |
 | CM (AASIST, LA-pretrained) | official 2019-LA checkpoint | **50.8 %** | no transfer to EmoSpoof clones at all |
+| CM (AASIST, LA-retrained) | AASIST trained on LA train audio | 2.11 % on held-out LA speakers, **43.8 %** on EASV test | in-domain LA detection works; the same model is at chance on EmoSpoof clones |
 
-## Regime A — usable countermeasure (in-domain CM)
+The ASV vulnerability is **generator-specific**, and the aggregate hides it:
 
-`results/real/run1`, `configs/real_run.yaml`, thresholds from dev only.
+| test clones | n | accepted at dev threshold | mean speaker score |
+|---|---:|---:|---:|
+| CosyVoice | 4,800 | 59.0 % | +0.455 |
+| F5-TTS | 4,800 | 51.5 % | +0.430 |
+| StyleTTS2 | 4,800 | **5.9 %** | +0.256 |
+
+StyleTTS2 clones carry so little of the target speaker's identity that an
+off-the-shelf ECAPA front-end rejects almost all of them; the same front-end
+accepts more than half of the F5-TTS and CosyVoice clones. The emotion ordering
+survives (angry 45.6 %, neutral 43.3 %, sad 33.2 %, happy 33.1 %), so the
+"emotion changes the vulnerability" claim holds inside each generator, not just
+in the aggregate.
+
+## Regime A — usable countermeasure, two-generator corpus (in-domain CM)
+
+`results/real/run1`, `configs/real_run.yaml`, thresholds from dev only, 41,900
+trials (F5-TTS + CosyVoice).
 
 | model | SASV-EER | 95 % CI | min a-DCF | ECE | params |
 |---|---:|---|---:|---:|---:|
@@ -30,8 +50,7 @@ Paired bootstrap against `linear`: additive −0.05 pts (p=0.73), interaction
 +0.05 pts (p=0.34), gated **−0.14 pts (p=0.98, i.e. slightly worse)**. No emotion
 arm beats plain fusion; the countermeasure already removes almost all spoof
 acceptance, so the remaining 0.6 % is ASV error and emotion carries no usable
-extra signal. The gated model is the best calibrated (ECE 0.004) but that is not
-a performance win.
+extra signal.
 
 ## Regime B — countermeasure that does not transfer (AASIST-LA)
 
@@ -49,19 +68,33 @@ out-of-domain AASIST checkpoint (SPF-EER 50.8 %, min t-DCF 0.999).
 Paired bootstrap vs `linear`: additive **+5.28 pts** (2.97–8.88, p<0.001),
 interaction +5.19 (2.94–8.57, p<0.001), gated **+5.57** (2.86–9.85, p<0.001).
 
-## Regime C — cross-generator countermeasure (leave-one-generator-out)
+A second failing countermeasure rules out the objection that the released
+checkpoint was the problem. The published AASIST architecture was retrained from
+scratch on 16,000 ASVspoof 2019 LA train utterances
+(`scripts/train_cm_aasist_la.py`), with 2,576 utterances from two held-out LA
+speakers selecting the checkpoint. That model is a genuine LA countermeasure:
+**2.11 % EER on the held-out LA speakers** (epoch 3, selected on LA dev only).
+Scored once on the EASV corpus it reaches **49.4 % EER on dev and 43.8 % on
+test** — chance level, exactly like the pretrained checkpoint. The negative
+transfer is therefore a property of the ASVspoof-2019 supervision, not of one
+particular checkpoint, and no fusion run was added for it: with a chance-level
+countermeasure the ladder collapses to Regime B, which is already reported above.
+An earlier attempt that selected the checkpoint on EASV dev is kept out of these
+tables (`real/cm_aasist_la_ongenv_selected`); it stopped at epoch 1 with 39.8 %
+dev EER, so its 40.8 % test number measured the domain gap rather than the
+countermeasure.
+
+## Regime C — cross-generator CM, two-generator corpus
 
 `results/real/run3_crossgen`, `real/cm_holdout_f5`. The CM is retrained with the
 F5-TTS generator **excluded from training and from dev-based early stopping**, so
-every F5-TTS clone it scores is from an unseen attack system. This is the
-honest generalisation test the two-generator corpus can support today.
+every F5-TTS clone it scores is from an unseen attack system.
 
 | quantity | value |
 |---|---:|
 | CM-EER on generators seen in training (CosyVoice) | 3.19 % |
 | CM-EER on the held-out generator (F5-TTS) | **6.27 %** |
 | CM-EER overall (test) | 4.28 % |
-| AASIST-LA for comparison | 50.8 % |
 
 | model | SASV-EER | 95 % CI | min a-DCF | ECE |
 |---|---:|---|---:|---:|
@@ -72,74 +105,136 @@ honest generalisation test the two-generator corpus can support today.
 | emotion_gated | 0.0393 | 0.0220–0.0532 | 0.1643 | 0.048 |
 
 Paired bootstrap vs `linear`: additive +0.01 pts (p=0.56), interaction **+0.38 pts**
-(0.08–1.11, p<0.001), gated +0.27 pts (−0.23–0.86, p=0.23). So under a genuinely
-unseen generator the emotion arms are at best marginally better, and the
-proposed gated arm's interval still includes zero. Two findings are solid here:
-(a) a CM trained on one neural generator transfers to another far better than an
-LA-trained CM transfers to either (6.27 % vs 50.8 % EER), and (b) even then,
-emotion conditioning does not deliver the large gain the hypothesis predicted.
+(0.08–1.11, p<0.001), gated +0.27 pts (−0.23–0.86, p=0.23). Under a genuinely
+unseen generator the proposed gated arm's interval still includes zero.
+
+## Regime D — three-generator corpus, cross-generator CM (the headline run)
+
+`results/real/run4_3gen_crossgen`, 53,900 trials. The CM is trained with the
+StyleTTS2 generator excluded from training *and* from dev-based early stopping,
+so a third of the test spoofs come from a generator the countermeasure has never
+seen. This is the complete design the research plan asked for.
+
+| model | SASV-EER | 95 % CI | min a-DCF | min t-DCF | ECE | params |
+|---|---:|---|---:|---:|---:|---:|
+| speaker_only | 0.2712 | 0.2143–0.3155 | 0.5826 | 0.8216 | 0.097 | 2 |
+| linear | 0.0227 | 0.0101–0.0306 | 0.0583 | 0.1962 | 0.050 | 3 |
+| emotion_additive | 0.0251 | 0.0097–0.0348 | 0.0671 | 0.2013 | 0.049 | 9 |
+| emotion_interaction | 0.0209 | 0.0091–0.0301 | 0.0582 | 0.1881 | 0.028 | 22 |
+| emotion_gated | **0.0154** | 0.0064–0.0198 | 0.0510 | 0.1661 | 0.005 | 43 |
+
+Paired grouped bootstrap vs `linear`: interaction **+0.20 pts** (0.03–0.62,
+p=0.006), gated **+0.68 pts** (0.15–1.12, p=0.002). Comparing the proposed arm
+against the simpler emotion-conditioned control, which the evaluation CLI does
+not do by default (`scripts/compare_arms.py`):
+
+| contrast | SASV-EER gain | 95 % CI | p |
+|---|---:|---|---:|
+| emotion_gated vs emotion_interaction | **+0.48 pts** | 0.06–0.99 | 0.998 |
+| emotion_interaction vs linear | +0.20 pts | 0.03–0.62 | 1.000 |
+| emotion_gated vs emotion_additive | +0.85 pts | 0.25–1.46 | 1.000 |
+
+So with a third, unseen generator in the test set, the gated arm is the best arm
+and its edge over both the interaction control and the capacity control is
+significant. Where the gain comes from:
+
+| attack | linear spoof accept | gated spoof accept |
+|---|---:|---:|
+| StyleTTS2 (unseen by the CM) | 1.9 % | 1.2 % |
+| CosyVoice | 0.1 % | 0.0 % |
+| F5-TTS | 0.0 % | 0.0 % |
+| bona fide targets accepted | 93.8 % | 96.0 % |
+| bona fide nontargets accepted | 2.5 % | 4.4 % |
+
+**The gate does not use emotion.** Its learned weights are almost identical
+across all five emotion conditions (speaker weight 4.02–4.05, CM weight
+9.69–9.73 — a spread under 0.5 %), so the model is not conditioning its decision
+on emotion; it is a better-fitting, better-calibrated decision function that
+happens to beat the interaction model on this split. The same collapse appears in
+every regime: in Regime A the five per-emotion gate weights agree to three
+decimals. That is the honest reading of the positive result above — the paper's
+mechanism claim is still unsupported by this data, even though its *predictive*
+arm now wins.
 
 ## The catch: why the Regime B gain is not (only) emotion conditioning
 
-The SER front-end is confidently wrong on clones: 30.7 % accuracy — barely above
-the 25 % chance level — with a mean maximum probability of 0.83, against 41.8 %
-and 0.777 on bona fide speech. The emotion probability vector therefore carries
-a **spoof cue**: "confidently wrong emotion" correlates with being synthetic.
-
-That is enough to explain a 5-point SASV-EER gain from emotion features without
-any genuine emotion-conditioned speaker/countermeasure modelling, and it is a
-labelling hazard for any paper claim built on a weak CM. The honest reading of
-Regime B is: *when the countermeasure fails, the emotion recogniser's
-out-of-distribution behaviour acts as a substitute detector*. Confirmatory test
-for a future pass: retrain the fusion arms with emotion features replaced by an
-explicit "SER confidence" scalar and see whether the gain survives; and evaluate
-on the third generator (StyleTTS2) once its subset lands, where SER behaviour may
-differ.
+The SER front-end is confidently wrong on clones: 32.8 % accuracy — barely above
+the 25 % chance level — with a mean maximum probability of 0.825, against 41.2 %
+and 0.796 on bona fide speech. The emotion probability vector therefore carries a
+**spoof cue**: "confidently wrong emotion" correlates with being synthetic. That
+is enough to explain a 5-point SASV-EER gain from emotion features without any
+genuine emotion-conditioned speaker/countermeasure modelling. It is a labelling
+hazard for any paper claim built on a weak CM. The confirmatory test for a future
+pass: retrain the fusion arms with the emotion features replaced by one explicit
+"SER confidence" scalar and see whether the Regime B gain survives. Given the
+gate-weight collapse in Regime D, the same ablation would settle whether the
+gated arm's advantage is anything more than capacity and calibration.
 
 ## What these results do and do not establish
 
 Established (measured, real audio, dev-only thresholds, test reported once):
 
-* an off-the-shelf ECAPA ASV accepts 55.2 % of neural emotional clones as the
-  cloned speaker, and acceptance is emotion-dependent (angry 64.6 %, neutral
-  61.7 %, sad 47.5 %, happy 47.2 %);
+* an off-the-shelf ECAPA ASV accepts **38.8 %** of neural emotional clones as the
+  cloned speaker, and the rate is generator-dependent (CosyVoice 59.0 %, F5-TTS
+  51.5 %, StyleTTS2 5.9 %) and emotion-dependent inside each generator;
 * standard spoofing-aware fusion removes nearly all of that vulnerability when
-  the countermeasure works (33.1 % → 0.6 % SASV-EER);
-* the LA-trained AASIST checkpoint does not transfer to EmoSpoof-TTS clones
-  (EER 50.8 %) — a CM trained on ASVspoof-2019 attack families is not a
-  countermeasure for modern neural TTS in a different recording domain;
-* with an in-domain CM, emotion-conditioned fusion adds nothing (and the gated
-  arm is marginally worse);
+  the countermeasure works (33.1 % → 0.6 % SASV-EER in Regime A);
+* the LA-pretrained AASIST checkpoint does not transfer to EmoSpoof-TTS clones
+  (EER 50.8 %), and neither does an AASIST retrained in-domain on LA audio
+  (2.11 % on held-out LA speakers, 43.8 % on EASV test), while a small log-mel
+  CNN trained on two generators detects a third at **2.50 %** EER —
+  generator-adjacent training data matters far more than the ASVspoof lineage;
+* on the complete three-generator design the proposed gated arm is the best model
+  (**1.54 %** SASV-EER vs 2.27 % linear), and its edge over the interaction
+  control (+0.48 pts, CI 0.06–0.99) and the capacity control (+0.85 pts) is
+  significant;
+* the gated arm's learned gate weights are flat across emotions, so that edge
+  cannot be attributed to emotion-conditioned gating;
 * with a failing CM, emotion features cut SASV-EER by ~5.5 points, but the
-  mechanism is most likely SER's OOD behaviour acting as a spoof cue.
+  mechanism is most likely SER's out-of-distribution behaviour acting as a spoof
+  cue.
 
 Not established:
 
-* a cross-generator *benefit* from the gated arm: the leave-one-generator-out run
-  gives it +0.27 pts with an interval that includes zero, while the interaction
-  control gets a small significant +0.38 pts;
-* a third-generator (StyleTTS2) result — its archive is still being fetched;
-* an in-domain AASIST re-trained on ASVspoof 2019 LA (blocked on disk space).
-
-What *is* established about generalisation: a CM trained on CosyVoice clones
-detects held-out F5-TTS clones at 6.27 % EER, an order of magnitude better than
-the 50.8 % of the LA-pretrained AASIST — generator-adjacent training data matters
-more than the ASVspoof lineage for this corpus.
+* that emotion *conditioning* — as opposed to extra capacity and a better
+  calibration of the same two signals — produces the Regime D gain; the gate
+  weights say it does not;
+* a cross-generator *benefit* from the gated arm in the two-generator corpus
+  (Regime C: +0.27 pts, CI includes zero) — the positive result appears only once
+  the third generator is present, and the two settings have to be reported side
+  by side rather than merged.
 
 ## Reproduce
 
 ```bash
 D=/home/vct/data/easv
-python scripts/build_manifests.py esd       --esd-root $D/esd --out results/e2e/m_esd_real.csv
-python scripts/build_manifests.py emospoof  --emo-root $D/emospoof --out results/e2e/m_emospoof.csv
-python scripts/merge_manifests.py --esd results/e2e/m_esd_real.csv \
+.venv/bin/python scripts/build_manifests.py esd       --esd-root $D/esd --out results/e2e/m_esd_real.csv
+.venv/bin/python scripts/build_manifests.py emospoof  --emo-root $D/emospoof --out results/e2e/m_emospoof.csv
+.venv/bin/python scripts/merge_manifests.py --esd results/e2e/m_esd_real.csv \
     --emospoof results/e2e/m_emospoof.csv --out results/e2e/merged_manifest.csv
-python scripts/producer_asv.py --manifest results/e2e/merged_manifest.csv --out $D/real/scores_asv_merged.csv
-python scripts/train_cm_indomain.py --manifest results/e2e/merged_manifest.csv --out-dir $D/real/cm_indomain
-python scripts/producer_ser.py --manifest results/e2e/merged_manifest.csv --out $D/real/scores_ser_merged.csv
-python scripts/combine_scores.py --speaker $D/real/scores_asv_merged.csv \
-    --cm $D/real/cm_indomain/scores_cm_indomain.csv \
-    --emotion $D/real/scores_ser_merged.csv --out $D/real/scores_combined.csv
-easv evaluate --manifest results/e2e/merged_manifest.csv \
-    --scores $D/real/scores_combined.csv --config configs/real_run.yaml --out results/real/run1
+.venv/bin/python scripts/producer_asv.py --manifest results/e2e/merged_manifest.csv --out $D/real/scores_asv_merged.csv
+.venv/bin/python scripts/producer_ser.py --manifest results/e2e/merged_manifest.csv --out $D/real/scores_ser_merged.csv
+# cross-generator CM: hold the third generator out of training and selection
+.venv/bin/python scripts/train_cm_indomain.py --manifest results/e2e/merged_manifest.csv \
+    --out-dir $D/real/cm_holdout_styletts2 --holdout-attack styletts2
+.venv/bin/python scripts/combine_scores.py --speaker $D/real/scores_asv_merged.csv \
+    --cm $D/real/cm_holdout_styletts2/scores_cm_indomain.csv \
+    --emotion $D/real/scores_ser_merged.csv --out $D/real/scores_combined_3gen.csv
+.venv/bin/python -m easv.cli evaluate --manifest results/e2e/merged_manifest.csv \
+    --scores $D/real/scores_combined_3gen.csv --config configs/real_run.yaml \
+    --out results/real/run4_3gen_crossgen
+.venv/bin/python scripts/compare_arms.py --results results/real/run4_3gen_crossgen \
+    --manifest results/e2e/merged_manifest.csv \
+    --a emotion_gated --b emotion_interaction
+
+# ASVspoof 2019 LA: build the manifest, then retrain AASIST in-domain
+.venv/bin/python scripts/build_manifests.py asvspoof \
+    --la-root $D/asvspoof2019LA --out results/e2e/m_asvspoof_la.csv
+.venv/bin/python scripts/train_cm_aasist_la.py --la-manifest results/e2e/m_asvspoof_la.csv \
+    --easv-manifest results/e2e/merged_manifest.csv --aasist-root $D/aasist \
+    --out-dir $D/real/cm_aasist_la --device cuda --epochs 3 --max-train 16000 \
+    --batch-size 12 --amp bf16
 ```
+
+`bash scripts/run_real_pipeline.sh` chains the same stages (manifests → audit →
+ASV → SER → CM → combine → evaluate) and is resumable at every step.

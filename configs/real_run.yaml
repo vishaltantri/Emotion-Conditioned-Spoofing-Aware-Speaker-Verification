@@ -48,9 +48,12 @@ provenance:
   kind: real
   note: >-
     ESD English speakers 0011-0020 (bona fide, emotion ground truth from the
-    corpus folders) + EmoSpoof-TTS F5-TTS and CosyVoice subsets (spoof, emotion
-    ground truth from the generator archives). Speaker split 4/2/4. ASV scores
-    from SpeechBrain ECAPA-TDNN, SER from wav2vec2-base-superb-er, CM from an
-    in-domain log-mel CNN trained on the train split only (the LA-trained AASIST
-    does not transfer to these clones; see docs/PROGRESS_LOG.md). Three-generator
-    design incomplete: the StyleTTS2 subset is still being fetched.
+    corpus folders) + EmoSpoof-TTS StyleTTS2, F5-TTS and CosyVoice subsets
+    (spoof, emotion ground truth from the generator archives; 12,000 wavs per
+    generator, 36,000 clones). Speaker split 4/2/4, 53,900 trials. ASV scores
+    from SpeechBrain ECAPA-TDNN, SER from wav2vec2-base-superb-er. The CM in the
+    reported run is the cross-generator arm: a log-mel CNN trained with the
+    StyleTTS2 generator excluded from training and from dev-based early stopping
+    (SPF-EER 1.60 % overall, 2.50 % on the unseen StyleTTS2 clones). Other runs
+    swap only the CM file (in-domain CNN, LA-pretrained AASIST, LA-retrained
+    AASIST); see docs/REAL_RESULTS.md for each regime.
