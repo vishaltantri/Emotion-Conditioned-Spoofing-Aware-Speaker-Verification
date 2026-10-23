@@ -1,14 +1,27 @@
 # Remaining work plan — what is left and in what order
 
+> **Status update (2026-10-23): the stages below are largely executed.** This file
+> was written when no audio entered the repository; it is kept as the plan of
+> record, not as the current state. As of commit `fc8be96`: corpora (ESD, all three
+> EmoSpoof generators, ASVspoof 2019 LA train), score producers (ASV, SER, four
+> countermeasure regimes), manifests and audits, and the five-arm fusion evaluation
+> are all done, with results in [REAL_RESULTS.md](REAL_RESULTS.md) and the execution
+> history in [PROGRESS_LOG.md](PROGRESS_LOG.md). What is genuinely still open is
+> listed at the end of PROGRESS_LOG.md and in [PROTOCOL.md](PROTOCOL.md) section 6:
+> real-data runs of the two ablation overlays, a held-out-emotion split,
+> multi-seed repeats, reproduction of a published baseline, the ASVspoof 2019 eval
+> partition, and the manuscript/figures. Read the stage text below as the original
+> plan and cost model, not as a to-do list of untouched work.
+
 Derived from the repository audit ([../WORK_COMPLETION_AUDIT.md](../WORK_COMPLETION_AUDIT.md)),
 the implementation plan ([IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md)) and the
 protocol ([PROTOCOL.md](PROTOCOL.md)). This file is the actionable to-do list; it
 restates what is done in one paragraph and then specifies every unfinished stage
 with concrete steps, costs and decision points.
 
-## Where the project actually stands
+## Where the project stood when this plan was written (2026-10-21)
 
-Done and verified (65 tests, synthetic `easv demo` end-to-end):
+Done and verified at that time (65 tests, synthetic `easv demo` end-to-end):
 
 - manifest schema + leakage/coverage audits (`easv audit`);
 - score alignment by trial_id, fusion ladder (`speaker_only`, `linear`,
@@ -18,7 +31,8 @@ Done and verified (65 tests, synthetic `easv demo` end-to-end):
 - CLI (`audit`, `evaluate`, `demo`, `predict`, `manifest-template`), ablation configs;
 - prior-art matrix with four papers read/verified, method-distinction paragraph.
 
-Not done — and this is the entire remaining project:
+Not done at that time (every item below has since been executed; see
+[PROGRESS_LOG.md](PROGRESS_LOG.md) pass 2 and pass 3):
 
 1. **No audio enters this codebase.** There is no ASV model, no countermeasure
    model, no speech-emotion model, no checkpoints. The pipeline starts from
@@ -125,12 +139,14 @@ ASVspoof 2019 LA eval partition. Neither blocks any planned claim.
 Steps (order matters for the 21 GiB disk — one corpus at a time, extract
 selectively, delete the archive before the next):
 
-1. [ ] ~~Day-1 action — ESD licence~~ **RESOLVED**: ESD is being pulled from the
-       public Hugging Face mirror now (`~/data/easv/esd/`), so the human licence
-       step no longer blocks Stage 2. If later desired, fill the official form
-       ([ESD GitHub](https://github.com/HLTSingapore/Emotional-Speech-Data)) and
-       e-mail it — the draft at [../docs/ESD_LICENCE_EMAIL.md](ESD_LICENCE_EMAIL.md)
-       is ready; sending is optional, not a blocker.
+1. [ ] Day-1 action — ESD licence. **Still not granted, and fetching the audio from
+       a public Hugging Face mirror does not grant rights to it.** ESD is released
+       under a research licence that requires a signed form; the draft request at
+       [../docs/ESD_LICENCE_EMAIL.md](ESD_LICENCE_EMAIL.md) was never sent. The
+       experiments ran on the mirror copy anyway, which is a compliance risk for any
+       publication or redistribution, not a technical blocker. The licence form must
+       be submitted and the terms recorded (including whether derived score files may
+       be shared) before the results are published beyond the course report.
 2. [ ] Download each corpus in Tier-A order (ASVspoof 2019 LA → extract only
        `ASVspoof2019_LA_train` + `ASVspoof2019_LA_dev` → delete `LA.zip`; then
        EmoSpoof-TTS → extract → delete zips; then ESD → extract only speakers

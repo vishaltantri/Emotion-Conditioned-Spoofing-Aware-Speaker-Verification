@@ -363,3 +363,49 @@ single SER-confidence scalar (to test whether the Regime B gain survives), and a
 capacity-matched gate (to test whether the Regime D gain is architecture or
 capacity). Both need a new frozen config and a fresh test report; neither is
 required to state the results above.
+
+## Audit pass (2026-10-23): what is actually open
+
+Code, corpora and the reported evaluation are complete for the current design.
+The audit found stale documentation more often than missing work, and both are
+listed here so the next reader does not have to reconstruct the state.
+
+Documentation corrected in this pass: the report abstract still claimed that no
+real corpus, backend or real result existed (rewritten with the measured numbers);
+section 4.1 still quoted 65 tests; the appendix listed only synthetic commands;
+README's "not implemented" list contradicted the rest of the file; the novelty
+matrix header still said every cell was an unverified TODO; the GCCE 2023 record
+had lost its heading and was merged into the Zhao entry; PROTOCOL section 6 still
+promised a pre-registration that never happened.
+
+Open items, ordered by how much they would change a conclusion:
+
+1. **Pre-registration was never done.** PROTOCOL section 6 now records the rules
+   that were applied and marks the numeric margins and the generalisation track as
+   post hoc. A future write-up needs a frozen decision table before the next test
+   report, otherwise the same criticism applies again.
+2. **Real-data ablations.** `ablation_no_emotion_uncertainty.yaml` and
+   `ablation_target_far_threshold.yaml` exist but have only been run on the
+   synthetic demo. Two `easv evaluate` invocations would close both
+   plan-required ablations on the 53,900-trial corpus.
+3. **No held-out-emotion track.** Every emotion condition appears in the training
+   split, so the per-emotion tables are descriptive. A cross-emotion claim needs
+   an emotion-held-out manifest; none exists.
+4. **Single seed, single split.** Fusion fits use seed 7 and one 4/2/4 speaker
+   split. Run-to-run and split-to-split variation are unreported.
+5. **LA validation is thin.** The retrained AASIST held out two LA speakers and
+   ran three epochs (still improving: 9.47 % -> 2.97 % -> 2.11 % dev EER). The
+   LA evaluation partition was never fetched, so there is no standard LA eval
+   number for it.
+6. **No fusion regime under the LA-retrained CM**, because its EASV train-split
+   scores were not produced. With a chance-level countermeasure the ladder reduces
+   to Regime B, which is reported, but the regime itself is absent from the tables.
+7. **The StyleTTS2 ASV anomaly is unexplained.** Only 5.9 % of its clones are
+   accepted by the speaker front-end against 51.5-59.0 % for the other two
+   generators. Audio properties were checked; per-generator speaker-identity
+   recovery was not measured.
+8. **No published-baseline reproduction**, so the metric code is validated by unit
+   tests only, not against reference numbers from SASV 2022 or ASVspoof.
+9. **Reproducibility loose ends.** `run_real_pipeline.sh` does not encode the
+   headline holdout regime or the LA training; `results/` is git-ignored; there is
+   no corpus checksum/licence table; the repository has no LICENSE file and no CI.

@@ -157,19 +157,31 @@ Implemented and tested:
   model selection from `dev`, test reported once, with a regression test that
   proves thresholds do not depend on test data;
 * metric suite with explicit acceptance conventions and configurable cost models;
-* the proposed gated fusion model plus its ablation arms, with JSON checkpoints;
-* grouped and paired bootstrap statistics; per-emotion and per-attack breakdowns;
+* the five-arm fusion ladder including the proposed gated model, with JSON checkpoints;
+* grouped and paired bootstrap statistics, per-emotion and per-attack breakdowns,
+  gate-weight reporting and arm-vs-arm contrasts;
+* real score producers: ECAPA-TDNN ASV, wav2vec2 SER, pretrained AASIST, in-domain
+  log-mel CM with leave-one-generator-out training, and AASIST retrained on
+  ASVspoof 2019 LA, plus the corpus fetchers and manifest builders;
 * CLI, synthetic demo, 79 tests.
 
-Not implemented (deliberately, see the plan's novelty gate):
+Not implemented, and known to be open:
 
-* WavLM/HuBERT front-ends and ECAPA-TDNN/AASIST training — the pipeline consumes
-  scores, so encoders plug in as score producers without touching this code;
-* real dataset ingestion (ASVspoof 2019/2021, SASV 2022, EmoSpoof-TTS, RAVDESS/CREMA-D);
-* prior-art verification and the novelty matrix (partially done — 4+1 papers
-  read and recorded at [docs/NOVELTY_MATRIX.md](docs/NOVELTY_MATRIX.md); conditional GO);
-* the real-dataset stage of the pipeline (see [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md));
-* the manuscript.
+* WavLM/HuBERT speaker or countermeasure encoders — the self-supervised part of the
+  plan is realised only through the wav2vec2 SER front-end;
+* a held-out-emotion evaluation: every emotion condition appears in the training
+  split, so the per-emotion tables are descriptive, not a cross-emotion
+  generalisation test (see PROTOCOL section 6);
+* the two ablation overlays (`ablation_no_emotion_uncertainty.yaml`,
+  `ablation_target_far_threshold.yaml`) have been exercised on synthetic data only,
+  not on the real corpus;
+* reproduction of a published baseline under a matched protocol, which is the
+  remaining novelty-gate item and would also validate the metric code against
+  reference numbers;
+* the ASVspoof 2019 LA evaluation partition (only train was fetched, so the
+  retrained CM is validated on two held-out speakers);
+* the manuscript ([paper/README.md](paper/README.md)) and the figure set
+  ([figures/README.md](figures/README.md)) — the course report is the current write-up.
 
 ### Real-data stage (complete)
 
@@ -177,7 +189,10 @@ Not implemented (deliberately, see the plan's novelty gate):
   verified offline install with import checks) — see
   [scripts/fetch_wheels.sh](scripts/fetch_wheels.sh);
 * [x] ESD English subset (speakers 0011–0020) fetched via public HF mirror,
-  17,660-trial real manifest, `easv audit` clean;
+  real manifest, `easv audit` clean. **Licence caveat:** a mirror is a
+  distribution route, not a grant; ESD's research licence form was never
+  submitted ([docs/ESD_LICENCE_EMAIL.md](docs/ESD_LICENCE_EMAIL.md)), so this
+  needs to be resolved before publishing beyond the course report;
 * [x] Real ASV score producer ([scripts/producer_asv.py](scripts/producer_asv.py),
   ECAPA-TDNN embeddings + cosine) and SER producer
   ([scripts/producer_ser.py](scripts/producer_ser.py), wav2vec2-base-superb-ER →

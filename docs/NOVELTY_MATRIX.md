@@ -1,9 +1,12 @@
 # Prior-art matrix and novelty gate
 
-**Status: unverified.** Every cell below is deliberately `TODO`. Filling a cell
-requires reading the full paper and recording what it actually does; cells must
-never be filled by inference from the title or abstract. This file is Phase 1 of
-[IMPLEMENTATION_PLAN.md](IMPLEMENTATION_PLAN.md) and it blocks any novelty claim.
+**Status: partially verified (2026-10-23).** The four closest papers have been
+read at the depth recorded below and the matrix is filled from those readings;
+metadata-only rows say so. Two gate items remain open: reproduction of a strong
+published baseline under a matched protocol, and a held-out-emotion evaluation.
+The proposed method has now been executed on real data, so its row reports
+measured behaviour rather than "untested". Until the two open items close, no
+novelty claim — and no "first" or "state of the art" wording — is permitted.
 
 ## Comparison matrix
 
@@ -18,7 +21,7 @@ never be filled by inference from the title or abstract. This file is Phase 1 of
 | WavLM | n/a (encoder) | n/a | n/a | yes | n/a | n/a | n/a | no |
 | ECAPA-TDNN | yes | no | no | no | n/a | n/a | n/a | no |
 | AASIST | no | yes | no | no | n/a | n/a | n/a | no |
-| Proposed method | yes | yes | yes (probs + uncertainty) | planned (WavLM/HuBERT) | emotion-conditioned gated fusion (implemented, untested on real data) | must test | must test | partially (this repo) |
+| Proposed method | yes | yes | yes (probs + uncertainty) | planned (WavLM/HuBERT); realised only through the wav2vec2 SER front-end | emotion-conditioned gated fusion (implemented, tested on 53,900 real trials) | **yes** — StyleTTS2 held out of CM training; 2.50 % EER on the unseen generator | descriptive only: every emotion appears in train, so no held-out-emotion test | this repo |
 
 For each row, also record: features, encoder, training objective, where fusion
 happens, losses, datasets and splits, metrics, baselines, stated limitations, and
@@ -80,6 +83,7 @@ limitations visible from the protocol but not stated.
 - **Baselines**: single-task speaker models and standalone spoof detectors
 - **Stated limitations (from method + abstract)**: t-DCF-based evaluation predates SASV-EER; no emotion information anywhere in the method
 - **Protocol-visible limitations**: integrated model, not a fusion layer — our score-level emotion-conditioned gate is not comparable to nor subsumed by this; three-class SASV mislabelling issue (nontarget vs spoof) not addressed
+### IEEE GCCE 2023 — Utterance-Style-Dependent Speaker Verification by Utilizing Emotions
 - **Authors**: Takayama, Nishida, Tsuge, Kuroiwa, Nishimura
 - **DOI**: 10.1109/GCCE59613.2023.10315461
 - **Features**: user-specified emotion as verification key
@@ -145,14 +149,31 @@ ScienceDirect, arXiv — with date filters and both exact-title and concept sear
   - Sensors 2025: JTES corpus not public; seed-VC only one generator
   - Interspeech 2025: EmoSpoof-TTS released (emospoof-tts.github.io); RawNet2 code available
   - Need: ASVspoof 2019/2021 + SASV 2022 scores with emotion labels for matched protocol
-- [ ] The claimed gap is traceable to specific verified limitations.
-  - Gap 1: Sensors 2025 uses fixed α — cannot adapt CM weight per emotion (anger needs more CM, sadness less)
+  - **Still open.** The gates of the method under test reproduced nothing published;
+    the SASV/ASVspoof lineages appear only as an out-of-domain countermeasure.
+- [x] The claimed gap is traceable to specific verified limitations.
+  - Gap 1: Sensors 2025 uses fixed α — cannot adapt CM weight per emotion
   - Gap 2: GEM gates anti-spoofing models only, no speaker verification integration
-  - Gap 3: No prior work uses SASV-EER / min a-DCF / min t-DCF with emotion-conditioned fusion
-  - Gap 4: No prior work evaluates cross-generator AND cross-emotion with paired bootstrap
+  - Gap 3: No verified source combines SASV fusion with per-trial emotion conditioning
+  - Gap 4: No prior work evaluates cross-generator *and* cross-emotion SASV with paired bootstrap
+  - Measured support (docs/REAL_RESULTS.md): with a working in-domain countermeasure the
+    gated arm is 0.14 pts worse than linear (p=0.98); with StyleTTS2 held out it is
+    0.68 pts better (CI 0.15-1.12) but its gate weights are flat across emotions, so the
+    mechanism the gap claims is not what produces the gain.
 - [ ] The contribution fits in one precise sentence.
+  - Candidate, evidence-limited: *emotion-conditioned, uncertainty-aware score fusion
+    for SASV can be evaluated end to end on a three-generator emotional-clone corpus,
+    where it beats conventional fusion on the hard cross-generator condition while
+    its learned gate turns out not to use emotion.*
+  - Left unchecked: as written this is a descriptive finding about this corpus, not a
+    demonstrated advantage of the proposed mechanism.
 - [ ] Cross-emotion *and* cross-generator generalization are evaluated, or the
       omission is justified.
+  - Cross-generator: **done** (F5-TTS held out at 6.27 % CM-EER; StyleTTS2 held out
+    at 2.50 %), with the results reported side by side.
+  - Cross-emotion: **not done**. Every emotion condition appears in the training
+    split, so the per-emotion tables are descriptive. A held-out-emotion split is the
+    missing experiment; [PROTOCOL.md](PROTOCOL.md) section 6 records it as open.
 
 ## Method-distinction paragraph (to write after the gate)
 

@@ -162,20 +162,28 @@ calibrated scores.
   gaps are described as observed rather than as statistically established when the
   interval includes zero.
 
-## 6. Pre-registered success criteria (to be filled before the first real run)
+## 6. Success criteria — recorded after the first real run (not pre-registered)
 
 The research plan requires the decision framework to be written down *before*
-looking at test results. Until this table is completed from verified benchmark
-numbers, no positive/negative conclusion may be drawn:
+looking at test results. **That did not happen.** Metric definitions, the split
+policy and the comparison baseline were fixed before any test number existed, but
+the numeric gain margin, the must-hold generalisation track and the acceptable
+FRR increase were not. This table is therefore a record of the rules actually
+applied, written on 2026-10-23 after test results were already known, and no
+pre-registration claim may be built on it. The honest consequence: the
+cross-generator StyleTTS2 track was emphasised after its numbers came in, so it
+cannot be described as the pre-specified generalisation test; the two- and
+three-generator results are reported side by side for that reason.
 
 | criterion | value | status |
 |---|---|---|
-| primary metric | SASV-EER (test) | fixed |
-| comparison baseline | `linear` (speaker + CM fusion) | fixed |
-| required gain over baseline | TODO — set from prior-art results | open |
-| must-hold generalization track | TODO — cross-generator and/or cross-emotion | open |
-| acceptable bona-fide FRR increase | TODO | open |
-| statistical requirement | paired bootstrap interval excluding 0 | fixed |
+| primary metric | SASV-EER on the test split | fixed before the run |
+| comparison baseline | `linear` (speaker + CM fusion) | fixed before the run |
+| required gain over baseline | no numeric margin was fixed; results are reported as observed with paired bootstrap intervals | **not pre-registered** |
+| must-hold generalization track | cross-generator (StyleTTS2 held out of CM training), added once the third generator landed | **post hoc** |
+| acceptable bona-fide FRR increase | no margin was fixed; target acceptance is reported at the dev-selected EER threshold (96.0 % gated vs 93.8 % linear in the three-generator run). The 1 % FAR-budget policy exists as an overlay but has only been run on synthetic data | **not pre-registered** |
+| statistical requirement | paired grouped-bootstrap interval, speakers as resampling unit, 1,000 resamples, seed 7 | fixed before the run |
+| cross-emotion track | **not run**: every emotion condition appears in train, so per-emotion breakdowns are descriptive, not a held-out-emotion test | open |
 
 ## 7. Reporting checklist
 

@@ -205,6 +205,108 @@ def add_crossgenerator(doc) -> None:
     new.paragraph_format.space_after = Pt(6)
 
 
+def update_abstract(doc) -> bool:
+    """Replace the synthetic-only abstract with the measured results.
+
+    The original abstract was written before any real corpus existed and states,
+    incorrectly, that no real corpus or pretrained backend is included. Leaving
+    it would misrepresent the whole report.
+    """
+    for p in doc.paragraphs:
+        if not p.text.strip().startswith("Voice authentication is useful only when"):
+            continue
+        if "53,900" in p.text:
+            return False
+        _set_text(p, (
+            "Voice authentication is useful only when a system can distinguish a genuine "
+            "claimant from an impostor and from a synthetic voice. This project implements, "
+            "audits and executes a score-level evaluation pipeline for emotion-conditioned "
+            "spoofing-aware speaker verification (EASV). The corpus combines ESD English bona "
+            "fide recordings of ten speakers with 36,000 EmoSpoof-TTS clones from three neural "
+            "generators (StyleTTS2, F5-TTS, CosyVoice), producing 53,900 speaker-disjoint "
+            "trials. Speaker, emotion and countermeasure scores come from SpeechBrain "
+            "ECAPA-TDNN, wav2vec2-base-superb-ER and a log-mel CNN; a published AASIST "
+            "checkpoint and an AASIST retrained on ASVspoof 2019 LA provide the transfer "
+            "controls. Fusion models are fitted on train, thresholds are selected on dev, and "
+            "the test split is reported once with grouped-bootstrap intervals. Measured, the "
+            "speaker front-end accepts 82.9 % of bona fide targets and 38.8 % of clones, "
+            "strongly generator-dependent (CosyVoice 59.0 %, F5-TTS 51.5 %, StyleTTS2 5.9 %); "
+            "conventional fusion cuts SASV-EER from 33.1 % to 0.60 % when the countermeasure "
+            "works, while ASVspoof-2019 countermeasures do not transfer to these clones "
+            "(50.8 % pretrained, 43.8 % retrained in-domain). On the complete corpus with "
+            "StyleTTS2 held out, the countermeasure detects the unseen generator at 2.50 % "
+            "EER and the proposed gated fusion is the best arm (1.54 % against 2.27 % SASV-EER, "
+            "and +0.48 points over the interaction control), but its learned gate weights are "
+            "flat across emotions, so the gain cannot be attributed to emotion conditioning. "
+            "All 79 tests pass. The report presents these results and their limits without "
+            "claiming novelty over published systems."))
+        return True
+    return False
+
+
+def update_audit_paragraph(doc) -> None:
+    """Keep section 4.1's test count and scope statement current."""
+    for p in doc.paragraphs:
+        if not p.text.strip().startswith("The repository was executed in its supplied"):
+            continue
+        _set_text(p, (
+            "The repository was executed in its supplied virtual environment. The full "
+            "automated suite completed successfully: 79 tests passed. The tests cover "
+            "manifest validation, score alignment, metric direction conventions, threshold "
+            "separation, fusion serialization, grouped evaluation, command-line behaviour, "
+            "the manifest builders, and the arm-vs-arm comparison sign convention. Passing "
+            "tests are evidence that the implemented functions meet their encoded "
+            "expectations; they are not evidence that a biometric system works on unseen "
+            "human speech, which is why section 4.4 executes the full pipeline on real audio."))
+        break
+
+
+def update_reproducibility_note(doc) -> None:
+    """Replace the note that implies no real experiment exists."""
+    for p in doc.paragraphs:
+        if not p.text.strip().startswith("The synthetic demo should not be cited"):
+            continue
+        _set_text(p, (
+            "The synthetic demo should not be cited as a benchmark result. Section 4.4 is the "
+            "real experiment: externally sourced speech, documented score producers, metric "
+            "definitions and split rules fixed before the test report, and a test split "
+            "evaluated once. (The numeric success margins were not pre-registered before the "
+            "first test report; PROTOCOL section 6 records that limitation explicitly.) Its "
+            "per-trial scores, fitted models and reports live in results/real/ (git-ignored "
+            "because they encode corpus paths) and the audio corpora live outside the "
+            "repository; docs/REAL_RESULTS.md records every number with its split, threshold "
+            "policy and interval, and docs/PROGRESS_LOG.md records how the corpora were "
+            "obtained. The synthetic demonstration is kept only as the pipeline smoke test."))
+        break
+
+
+def update_appendix(doc) -> None:
+    """Record the commands that actually produced the reported numbers."""
+    for p in doc.paragraphs:
+        t = p.text.strip()
+        if t.startswith("1. .venv/bin/python -m pytest -q"):
+            _set_text(p, (
+                "1. .venv/bin/python -m pytest -q  ->  79 tests passed.\n"
+                "2. .venv/bin/python -m easv demo --out <temporary directory> --config "
+                "configs/demo.yaml  ->  1,660 synthetic trials and five fitted models "
+                "(pipeline smoke test only).\n"
+                "3. .venv/bin/python -m easv audit --manifest results/e2e/merged_manifest.csv "
+                "--out results/e2e/audit_real  ->  0 errors, 4 expected warnings on the "
+                "53,900-trial real manifest.\n"
+                "4. scripts/producer_asv.py and scripts/producer_ser.py over the merged "
+                "manifest (53,900 score rows each); scripts/train_cm_indomain.py for the "
+                "in-domain and StyleTTS2-held-out countermeasures; scripts/producer_cm_aasist.py "
+                "for the pretrained checkpoint; scripts/train_cm_aasist_la.py plus "
+                "scripts/build_manifests.py asvspoof for the LA retrain.\n"
+                "5. .venv/bin/python -m easv.cli evaluate --manifest results/e2e/merged_manifest.csv "
+                "--scores <combined scores> --config configs/real_run.yaml --out "
+                "results/real/run4_3gen_crossgen  ->  the three-generator tables in 4.4.\n"
+                "6. .venv/bin/python scripts/compare_arms.py --results "
+                "results/real/run4_3gen_crossgen --manifest results/e2e/merged_manifest.csv "
+                "--a emotion_gated --b emotion_interaction  ->  the arm-vs-arm contrast."))
+            break
+
+
 def update_intro(doc) -> None:
     """Bring the section introduction up to the completed corpus."""
     for p in doc.paragraphs:
@@ -331,7 +433,11 @@ def main() -> None:
     texts = [p.text.strip() for p in doc.paragraphs]
     if any(t.startswith("4.4 Real-data results") for t in texts):
         add_crossgenerator(doc)
+        update_abstract(doc)
         update_intro(doc)
+        update_audit_paragraph(doc)
+        update_reproducibility_note(doc)
+        update_appendix(doc)
         added = add_three_generator(doc)
         added_la = add_la_aasist(doc, args.la_metrics)
         update_component_table(doc)
