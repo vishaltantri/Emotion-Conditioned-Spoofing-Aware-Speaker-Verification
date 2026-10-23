@@ -170,6 +170,89 @@ pass: retrain the fusion arms with the emotion features replaced by one explicit
 gate-weight collapse in Regime D, the same ablation would settle whether the
 gated arm's advantage is anything more than capacity and calibration.
 
+**That ablation has now been run** — see the next section. Both of its questions
+are answered, one in each direction.
+
+## SER-confidence ablation: the Regime B gain splits, the Regime D win does not need emotion
+
+`configs/ablation_ser_confidence.yaml` replaces the four-dimensional emotion
+probability vector with a **single scalar** — the SER's maximum predicted
+probability per trial — and refits every arm (`training.emotion_features:
+confidence_only`). Runs: `results/real/run2b_serconf` (Regime B) and
+`results/real/run4b_serconf` (Regime D); same manifest, ASV and CM scores as the
+parent runs, dev-only thresholds, 1,000-resample paired grouped bootstrap.
+Sanity check: the emotion-free arms reproduce the parent runs exactly (Regime B
+speaker-only 0.3309 / linear 0.3244; Regime D 0.2712 / 0.0227), so only the
+feature construction changed.
+
+### Regime B — failing AASIST-LA countermeasure (test n = 16,760)
+
+| model | confidence-only SASV-EER | gain vs linear | full-vector SASV-EER | gain vs linear |
+|---|---:|---|---:|---:|
+| linear | 0.3244 | — | 0.3244 | — |
+| emotion_additive | 0.3026 | +1.60 pts (CI 0.70–2.74, p<0.001) | 0.2654 | +5.28 pts |
+| emotion_interaction | 0.3036 | +1.60 pts (CI 0.58–2.78, p<0.001) | 0.2661 | +5.19 pts |
+| emotion_gated | 0.3089 | +1.18 pts (CI −0.83–3.29, p=0.20) | 0.2610 | +5.57 pts |
+
+Cross-run paired contrast, confidence scalar vs full vector (same arm, same
+test split): additive **−3.68 pts** (CI −7.68…−0.78) and interaction **−3.59 pts**
+(CI −7.34…−0.81), both favouring the full vector significantly.
+
+Reading: the single scalar recovers about **a third** of the +5.4-point gain
+(significantly), so part of the Regime B gain is indeed the spoof cue. But the
+full vector is significantly better than the scalar, so the remaining two thirds
+come from the *per-class* structure of the SER output. Given that the SER is only
+32.8 % accurate on clones, the honest description of that residual is
+**per-class out-of-domain behaviour**, not demonstrated emotion semantics: the
+four probabilities together encode "which wrong label the model confidently
+chose", which is more informative than how confident it was, but is still a
+property of a model operating out of distribution. Regime B therefore cannot be
+cited as evidence for emotion-aware fusion even in the reframed form.
+
+### Regime D — three generators, cross-generator countermeasure (test n = 21,560)
+
+| model | confidence-only SASV-EER | gain vs linear | full-vector SASV-EER | gain vs linear |
+|---|---:|---|---:|---:|
+| linear | 0.0227 | — | 0.0227 | — |
+| emotion_additive | 0.0240 | −0.07 pts (CI −0.27…0.11, p=0.78) | 0.0251 | −0.24 pts |
+| emotion_interaction | 0.0232 | +0.01 pts (CI −0.10…0.20, p=0.49) | 0.0209 | +0.20 pts |
+| emotion_gated | **0.0149** | **+0.70 pts** (CI 0.14–1.23, p=0.002) | 0.0154 | +0.68 pts |
+
+Cross-run paired contrast for the headline arm: confidence-only gated vs
+full-vector gated **+0.02 pts** (CI −0.04…+0.09, p=0.76) — statistically
+indistinguishable; the scalar version is in fact marginally better. The
+interaction arm, by contrast, does need the full vector (confidence-only is
+−0.19 pts worse, CI −0.59…+0.03, p=0.046).
+
+**This settles the mechanism question.** The gated arm's entire Regime D edge is
+reproduced — to the third decimal — with a single confidence scalar. The gate
+cannot be doing emotion conditioning here by construction: its input is now
+one-dimensional. The +0.7-point win over linear fusion is a capacity and
+calibration effect on one spoof-correlated feature, exactly what the flat
+gate weights suggested. Any paper wording that credits the gated arm's win to
+emotion is now contradicted by two independent measurements (flat per-emotion
+weights, and scalar-only reproduction).
+
+Reproduce:
+
+```bash
+PYTHONPATH=src .venv/bin/python -m easv evaluate \
+    --manifest results/e2e/merged_manifest.csv \
+    --scores /home/vct/data/easv/real/scores_combined_oodcm.csv \
+    --config configs/real_run.yaml --config configs/ablation_ser_confidence.yaml \
+    --out results/real/run2b_serconf
+PYTHONPATH=src .venv/bin/python -m easv evaluate \
+    --manifest results/e2e/merged_manifest.csv \
+    --scores /home/vct/data/easv/real/scores_combined_3gen.csv \
+    --config configs/real_run.yaml --config configs/ablation_ser_confidence.yaml \
+    --out results/real/run4b_serconf
+# cross-run contrasts (confidence-only run vs its parent):
+.venv/bin/python scripts/compare_arms.py --results results/real/run4b_serconf \
+    --manifest results/e2e/merged_manifest.csv \
+    --results-b results/real/run4_3gen_crossgen \
+    --a emotion_gated --b emotion_gated
+```
+
 ## What these results do and do not establish
 
 Established (measured, real audio, dev-only thresholds, test reported once):
@@ -190,9 +273,15 @@ Established (measured, real audio, dev-only thresholds, test reported once):
   significant;
 * the gated arm's learned gate weights are flat across emotions, so that edge
   cannot be attributed to emotion-conditioned gating;
-* with a failing CM, emotion features cut SASV-EER by ~5.5 points, but the
-  mechanism is most likely SER's out-of-distribution behaviour acting as a spoof
-  cue.
+* with a failing CM, emotion features cut SASV-EER by ~5.5 points; the
+  confidence-scalar ablation splits the gain — a single max-probability scalar
+  recovers +1.6 points (significant) and the full vector is significantly better
+  than the scalar (−3.7 pts), so roughly a third is a spoof cue and the rest is
+  per-class out-of-domain SER behaviour, not demonstrated emotion semantics;
+* the gated arm's Regime D edge is **fully reproduced by the confidence scalar
+  alone** (1.49 % vs 1.54 %, indistinguishable, p=0.76), so it is a capacity and
+  calibration effect, not emotion conditioning — two independent measurements
+  now rule the mechanism out.
 
 Not established:
 

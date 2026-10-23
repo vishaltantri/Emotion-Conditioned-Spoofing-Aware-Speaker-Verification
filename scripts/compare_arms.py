@@ -20,6 +20,11 @@ Usage:
         --results results/real/run4_3gen_crossgen \
         --manifest results/e2e/merged_manifest.csv \
         --a emotion_gated --b emotion_interaction
+
+Two different evaluation runs can also be compared (e.g. the SER-confidence
+ablation against the full-emotion run), as long as both scored the same test
+split. Pass the second directory with ``--results-b``; arm ``a`` is read from
+``--results``, arm ``b`` from ``--results-b``, and the trial lists must match.
 """
 
 from __future__ import annotations
@@ -42,6 +47,9 @@ def main() -> None:
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--results", required=True, type=Path,
                     help="evaluation output directory containing results.json")
+    ap.add_argument("--results-b", type=Path, default=None,
+                    help="optional second run directory; arm b is read from there "
+                         "instead of --results (both must share the same test split)")
     ap.add_argument("--manifest", required=True, type=Path)
     ap.add_argument("--a", required=True, help="arm under test")
     ap.add_argument("--b", required=True, help="control arm")
@@ -51,23 +59,35 @@ def main() -> None:
                     help="optional JSON output path")
     args = ap.parse_args()
 
-    with open(args.results / "test_trial_scores.csv", encoding="utf-8") as fh:
-        rows = list(csv.DictReader(fh))
-    trial_ids = [r["trial_id"] for r in rows]
-    models = {}
-    for arm in (args.a, args.b):
+    def read_arm(results_dir: Path, arm: str) -> tuple[list[str], list[float]]:
+        with open(results_dir / "test_trial_scores.csv", encoding="utf-8") as fh:
+            rows = list(csv.DictReader(fh))
         column = f"{arm}_score"
         if column not in rows[0]:
-            raise SystemExit(f"arm {arm!r} not in {sorted(rows[0])}")
-        models[arm] = [float(r[column]) for r in rows]
+            raise SystemExit(f"arm {arm!r} not in {sorted(rows[0])} ({results_dir})")
+        return [r["trial_id"] for r in rows], [float(r[column]) for r in rows]
+
+    trial_ids, scores_a = read_arm(args.results, args.a)
+    if args.results_b is not None:
+        trial_ids_b, scores_b = read_arm(args.results_b, args.b)
+        if trial_ids_b != trial_ids:
+            raise SystemExit(
+                "the two runs scored different test trials "
+                f"({len(trial_ids)} vs {len(trial_ids_b)} rows, or different order); "
+                "a paired comparison needs the identical split and ordering"
+            )
+    else:
+        _, scores_b = read_arm(args.results, args.b)
 
     with open(args.manifest, encoding="utf-8") as fh:
         manifest = {r["trial_id"]: r for r in csv.DictReader(fh)}
     labels = np.array([manifest[t]["trial_type"] == "target" for t in trial_ids])
     groups = np.array([manifest[t]["claimed_speaker"] for t in trial_ids], dtype=object)
 
-    a = np.asarray(models[args.a], dtype=float)
-    b = np.asarray(models[args.b], dtype=float)
+    # Keys are positional, not the arm names: the same arm name can legitimately
+    # appear in both runs (e.g. an ablation run vs its parent).
+    a = np.asarray(scores_a, dtype=float)
+    b = np.asarray(scores_b, dtype=float)
     eer_a = compute_eer(a, labels).eer
     eer_b = compute_eer(b, labels).eer
 
@@ -81,6 +101,7 @@ def main() -> None:
     )
     result = {
         "results": str(args.results),
+        "results_b": str(args.results_b) if args.results_b else None,
         "arm_a": args.a, "arm_b": args.b,
         "n_test": int(len(labels)),
         "eer_a": eer_a, "eer_b": eer_b,

@@ -54,6 +54,12 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "l2": 1e-3,
         "max_iter": 2000,
         "use_uncertainty": True,
+        # "full" uses the whole emo_* probability vector; "confidence_only"
+        # replaces it with the single maximum-probability scalar. That is the
+        # spoof-cue ablation: if the emotion arms' gain survives on one scalar,
+        # it comes from the SER being confidently wrong on spoofed audio, not
+        # from emotion information.
+        "emotion_features": "full",
         "gated": {
             "hidden": 8,
             "lr": 0.05,
@@ -125,7 +131,19 @@ def load_config(
     return config
 
 
-def _features(batch: TrialBatch) -> FusionFeatures:
+def _features(batch: TrialBatch, config: Mapping[str, Any] | None = None) -> FusionFeatures:
+    mode = ((config or {}).get("training", {}) or {}).get("emotion_features", "full")
+    if mode == "confidence_only" and batch.emotion_probs is not None:
+        # One column: the SER's maximum predicted probability. Entropy is
+        # undefined for a 1-of-1 taxonomy and confidence would duplicate the
+        # column, so uncertainty features are disabled for this mode (enforced
+        # in _model_kwargs).
+        return FusionFeatures(
+            speaker=batch.speaker,
+            cm=batch.cm,
+            emotion=np.max(batch.emotion_probs, axis=1, keepdims=True),
+            emotion_labels=("ser_confidence",),
+        )
     return FusionFeatures(
         speaker=batch.speaker,
         cm=batch.cm,
@@ -184,10 +202,11 @@ class ModelResult:
 
 def _model_kwargs(name: str, config: Mapping[str, Any]) -> dict[str, Any]:
     training = config.get("training", {})
+    confidence_only = training.get("emotion_features", "full") == "confidence_only"
     kwargs: dict[str, Any] = {
         "l2": training.get("l2", 1e-3),
         "max_iter": training.get("max_iter", 2000),
-        "use_uncertainty": training.get("use_uncertainty", True),
+        "use_uncertainty": False if confidence_only else training.get("use_uncertainty", True),
     }
     gated = training.get("gated", {})
     for key in ("hidden", "lr", "epochs", "patience", "validation_fraction", "early_stopping"):
@@ -244,10 +263,15 @@ def _breakdown_by(
     return out
 
 
-def _gate_weight_summary(model, batch: TrialBatch, groups: Sequence[str]) -> dict[str, dict[str, float]] | None:
+def _gate_weight_summary(
+    model,
+    batch: TrialBatch,
+    groups: Sequence[str],
+    config: Mapping[str, Any] | None = None,
+) -> dict[str, dict[str, float]] | None:
     if not isinstance(model, fusion_mod.EmotionGatedFusion) or not batch.has_emotion:
         return None
-    w_s, w_c = model.gate_weights(_features(batch))
+    w_s, w_c = model.gate_weights(_features(batch, config))
     values = np.asarray(list(groups), dtype=object)
     summary: dict[str, dict[str, float]] = {}
     for value in np.unique(values):
@@ -285,9 +309,9 @@ def evaluate(
     if len(np.unique(y_test)) < 2:
         raise ValueError("test split needs both target and non-target trials to compute SASV-EER")
 
-    train_features = _features(train)
-    dev_features = _features(dev)
-    test_features = _features(test)
+    train_features = _features(train, config)
+    dev_features = _features(dev, config)
+    test_features = _features(test, config)
 
     results: dict[str, Any] = {
         "config": _jsonable(config),
@@ -415,7 +439,7 @@ def evaluate(
         ):
             entry.breakdown[label] = _breakdown_by(test_score, y_test, values, test, threshold)
 
-        entry.gate_weights = _gate_weight_summary(model, test, test.emotions)
+        entry.gate_weights = _gate_weight_summary(model, test, test.emotions, config)
         results["models"].append(entry.as_dict())
 
         # Persisted by write_results from the "_models" payload.

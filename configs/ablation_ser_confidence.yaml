@@ -1,0 +1,30 @@
+# Ablation: replace the emotion probability vector with ONE scalar —
+# the SER's maximum predicted probability.
+#
+# Question this run answers: with a failing countermeasure (Regime B), the
+# emotion arms gain ~5.5 SASV-EER points over linear fusion. Is that gain
+# emotion information, or is it the SER being *confidently wrong* on spoofed
+# audio (32.8 % accuracy at 0.825 mean max-probability) acting as a spoof cue?
+# Refit every arm with only the confidence scalar and compare.
+#
+# Layer on top of a base config (later files win):
+#
+#   easv evaluate --config configs/real_run.yaml \
+#                 --config configs/ablation_ser_confidence.yaml \
+#                 --scores <combined scores> --out <dir>
+#
+# The linear and speaker_only arms are emotion-free and must reproduce the base
+# run's numbers exactly; use them as the sanity check that only the feature
+# construction changed.
+
+training:
+  emotion_features: confidence_only
+
+provenance:
+  kind: real
+  note: >-
+    SER-confidence ablation: the emo_* probability vector is replaced by a single
+    scalar (the wav2vec2-SER maximum predicted probability per trial). Same
+    manifest, ASV and CM scores as the parent run; only the fusion feature
+    construction differs. Purpose: test whether the emotion arms' gain is
+    emotion information or an out-of-domain spoof cue in the SER front-end.

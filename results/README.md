@@ -24,6 +24,8 @@ Each evaluation run writes:
 | `real/run2_oodcm` | two-generator corpus, LA-pretrained AASIST (Regime B) |
 | `real/run3_crossgen` | two-generator corpus, F5-TTS held out (Regime C) |
 | `real/run4_3gen_crossgen` | **headline**: three-generator corpus, StyleTTS2 held out (Regime D), plus `paired_*.json` arm-vs-arm contrasts |
+| `real/run2b_serconf` | SER-confidence ablation of Regime B: emotion vector replaced by one max-probability scalar (`configs/ablation_ser_confidence.yaml`), plus `paired_*_full.json` contrasts against the parent run |
+| `real/run4b_serconf` | SER-confidence ablation of Regime D — the gated arm's edge reproduces with the scalar alone (1.49 % vs 1.54 %, indistinguishable) |
 | `real/asv_summary.{json,md}` | ASV component summary: SV-EER and spoof acceptance by split, emotion and generator |
 | `e2e/` | real manifests (`merged_manifest.csv`, 53,900 trials), LA manifest, and audit reports |
 

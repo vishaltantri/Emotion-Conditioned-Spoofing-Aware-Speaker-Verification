@@ -453,3 +453,49 @@ false, not just stale-in-tone:
 
 Nothing in `src/easv/` changed: its docstrings already described the score-level
 contract accurately, and all 79 tests still pass.
+
+## Pass 5 (2026-10-23): SER-confidence ablation — the mechanism question closed
+
+Publication deferred to a workshop-first schedule ([PUBLICATION_ACTION_PLAN.md](PUBLICATION_ACTION_PLAN.md);
+ESD licence demoted to a courtesy email after the licence research: EmoSpoof-TTS
+is CC BY 4.0 with no ESD audio inside, ESD's own terms state research use is free).
+First experiment: the spoof-cue ablation.
+
+**Implementation.** `training.emotion_features: confidence_only` in the evaluation
+config (`src/easv/evaluation.py`): the emo_* vector collapses to a single scalar,
+the SER's maximum predicted probability, and uncertainty features are disabled for
+that mode (entropy is undefined for a 1-of-1 taxonomy). Zero code change for the
+parent runs — the mode is off by default, and the synthetic demo with the mode on
+smoke-tests in seconds (additive falls from 12 to 4 features, gated from 60 to 23).
+`scripts/compare_arms.py` gained `--results-b` so two runs can be paired against
+each other; that exposed and fixed a real bug — same-named arms collided in the
+score dict, silently comparing arm b against itself (+0.000 everywhere).
+
+**Runs.** `results/real/run2b_serconf` (Regime B, AASIST-LA failing CM) and
+`results/real/run4b_serconf` (Regime D, three-generator cross-gen). Sanity check
+passed: emotion-free arms reproduce the parent runs to the fourth decimal, so only
+the feature construction differs.
+
+**Outcome, both directions satisfied:**
+
+* **Regime D (the headline run): the mechanism claim is dead.** The gated arm's
+  edge over linear fusion reproduces *entirely* with the scalar alone: 1.49 % vs
+  1.54 % SASV-EER, cross-run contrast +0.02 pts (CI −0.04…+0.09, p=0.76) —
+  indistinguishable. A one-dimensional input cannot do emotion conditioning, so
+  the +0.7-point win is capacity and calibration on one spoof-correlated feature.
+  Two independent measurements now refute the mechanism (flat per-emotion gate
+  weights; scalar-only reproduction). The interaction arm is different: it does
+  need the full vector (scalar-only −0.19 pts, p=0.046), which separates the two
+  emotion arms' behaviour.
+* **Regime B: the +5.5-point emotion gain is one-third spoof cue, but not only.**
+  The scalar recovers +1.6 points (CI 0.70–2.74, p<0.001); the full vector is
+  significantly better than the scalar (additive −3.68 pts, CI −7.68…−0.78).
+  So a third of the gain is the "confidently wrong SER" spoof cue, and the rest is
+  the *per-class* structure of the out-of-domain SER output — still not
+  demonstrated emotion semantics. Regime B is unusable as evidence for
+  emotion-aware fusion in any form.
+
+**Paper framing now fixed:** measurement/negative-result paper for a workshop; the
+gated arm's Regime D win is reported as a calibrated decision function, never as
+emotion conditioning. Full tables: [REAL_RESULTS.md](REAL_RESULTS.md), section
+"SER-confidence ablation".

@@ -166,3 +166,29 @@ def test_render_markdown_includes_audit_section(small_dataset):
     text = render_markdown(evaluate(joined, SMALL_CONFIG), audit=report)
     assert "## Manifest audit" in text
     assert "## Paired comparisons vs baseline" in text
+
+
+def test_confidence_only_features_collapse_the_emotion_vector(small_dataset):
+    """The spoof-cue ablation: one scalar replaces the emo_* vector.
+
+    Emotion-free arms must produce identical metrics to the full-feature run
+    (only the feature construction may differ); the emotion arms must run with
+    the reduced feature counts and the gate input must be one-dimensional.
+    """
+
+    joined, _ = small_dataset
+    config = {**SMALL_CONFIG, "training": {**SMALL_CONFIG["training"], "emotion_features": "confidence_only"}}
+    result = evaluate(joined, config)
+    by_name = {entry["name"]: entry for entry in result["models"]}
+    assert all(not entry["errors"] for entry in result["models"]), result["models"]
+    # 1 emotion column + no uncertainty features => additive has 3 columns.
+    assert by_name["emotion_additive"]["n_features"] == 3
+    assert by_name["emotion_interaction"]["n_features"] == 6  # s, c, block(1), s*block, c*block, s*c
+    # emotion-free arms are unaffected by the feature mode.
+    baseline = evaluate(joined, SMALL_CONFIG)
+    base = {entry["name"]: entry for entry in baseline["models"]}
+    for name in ("speaker_only", "linear"):
+        assert by_name[name]["test"]["sasv_eer"] == base[name]["test"]["sasv_eer"]
+        assert by_name[name]["test"]["at_dev_threshold"]["threshold"] == base[name]["test"]["at_dev_threshold"]["threshold"]
+    # The gate summary must still be produced (1-D emotion representation).
+    assert by_name["emotion_gated"]["gate_weights"] is not None

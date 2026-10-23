@@ -14,10 +14,22 @@ Manuscript drafting is blocked on two things, not on missing results:
    published baseline has been reproduced under a matched protocol, and no
    held-out-emotion evaluation exists. Without those, a paper can describe a corpus,
    a protocol and a measured finding, but not a demonstrated advantage of the
-   proposed mechanism — the measured gate weights are flat across emotions.
-2. **The corpus licence is unresolved.** ESD's research licence was never granted
-   (the audio came from a public mirror). See
-   [docs/REMAINING_WORK_PLAN.md](../docs/REMAINING_WORK_PLAN.md), Stage 2.
+   proposed mechanism — the measured gate weights are flat across emotions, and the
+   SER-confidence ablation reproduces the gated arm's Regime D edge with a single
+   scalar (see [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md)). The mechanism claim
+   is therefore closed as a negative result; the paper's contribution is the
+   evaluation, the transfer findings and the mechanism analysis.
+2. **The corpus licence.** ESD's research licence was never granted (the audio came
+   from a public mirror), but a workshop submission does not require it: ESD's own
+   terms say "free to use only for research purpose", the EmoSpoof-TTS clones are
+   CC BY 4.0 with no ESD audio inside, and the licence email
+   ([docs/ESD_LICENCE_EMAIL.md](../docs/ESD_LICENCE_EMAIL.md)) is a courtesy that
+   converts "probably fine" into "documented". See
+   [docs/PUBLICATION_ACTION_PLAN.md](../docs/PUBLICATION_ACTION_PLAN.md).
+
+Target venue per the action plan: an ASVspoof/ICASSP/Interspeech workshop, framed
+as a measurement and negative-result paper; a journal submission waits for the
+licence plus the held-out-emotion and baseline-reproduction items.
 
 When drafting starts, the constraints are recorded in
 [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md) ("What these results do and do not
