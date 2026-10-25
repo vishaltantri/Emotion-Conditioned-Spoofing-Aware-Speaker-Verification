@@ -535,3 +535,41 @@ scalar reproducing the Regime D edge. `scripts/compare_arms.py` gained `--emotio
 so a contrast can be scoped to one condition's test trials. Tables and caveats
 (the fold was run only against a working CM): [REAL_RESULTS.md](REAL_RESULTS.md),
 section "Held-out-emotion folds".
+
+## 2026-10-25 — Figure set, generated rather than drawn
+
+`figures/` had been a placeholder since the start. It now holds five figures, all
+produced by `scripts/make_figures.py` from stored evaluation output — metrics,
+bootstrap intervals and gate weights from `results/real/*/results.json`, curves and
+the vulnerability matrix recomputed from `test_trial_scores.csv` and the manifest.
+No number is typed into the plotting code, so a re-run of the evaluation updates
+the plots instead of letting them drift.
+
+1. **Arms by regime** — SASV-EER with grouped-bootstrap intervals, five arms, four
+   countermeasure regimes; the regime-dependent sign flip is visible in one glance.
+2. **Gate weights** — the negative result as an image: each regime's per-emotion
+   weights plotted as deviations from that regime's own mean, with the spread named
+   in the legend (speaker 0.00 / 13.49 / 4.04 / 0.81 %, countermeasure
+   0.00 / 0.25 / 1.68 / 0.40 % for regimes A–D). Normalising per regime is what
+   makes the four regimes comparable: they sit at different weight levels, and the
+   claim is about variation *within* a regime.
+3. **Vulnerability** — pooled spoof acceptance by generator beside the
+   emotion × generator matrix, which separates StyleTTS2 (4.5–7.6 %) from
+   CosyVoice (48.5–70.3 %) instead of averaging them into 38.8 %.
+4. **DET curves** — `linear` vs `emotion_gated` per regime on probit axes with the
+   equal-error point marked.
+5. **ASV score distributions** — per-generator ECAPA densities against the
+   dev-selected threshold.
+
+**A real bug was caught by looking at the output.** The first DET render showed a
+0.6 %-EER system rejecting 95 % of targets. `sasv_curve` sorted the scores
+descending — so the cumulative positive count is the *accept* count — and then
+reported it as the rejection rate, inverting every curve. Fixed, and the crossing
+now reproduces the reported SASV-EER (regime A linear 0.63 % vs 0.60 % reported;
+regime D gated 1.50 % vs 1.54 %), which is what the new
+`tests/test_figures.py` pins, including the analytic crossing for two unit-variance
+Gaussians one standard deviation apart (EER = Φ(−0.5) = 30.9 %).
+
+Figures are exported twice (200 dpi `.png`, vector `.pdf`). `matplotlib` is an
+optional extra (`pip install -e '.[figures]'`), so the core test suite still runs
+without it.

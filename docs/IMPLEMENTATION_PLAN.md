@@ -7,7 +7,7 @@ implemented, what was executed, and what is still missing. Numbers are in
 [PROGRESS_LOG.md](PROGRESS_LOG.md); the stage-by-stage work plan is
 [REMAINING_WORK_PLAN.md](REMAINING_WORK_PLAN.md).
 
-Last verified 2026-10-25: 83 tests passing, four countermeasure regimes, one
+Last verified 2026-10-25: 85 tests passing, four countermeasure regimes, one
 SER-confidence ablation and two held-out-emotion folds evaluated on 53,900 real
 trials.
 
@@ -102,7 +102,9 @@ always left intact. The test split was evaluated once per regime, as required.
 
 ## Phase 6 — Paper writing — **not started**
 
-`paper/` holds the section outline only. The course report
+`paper/` holds the section outline only. The figure set it needs is done:
+five figures in [figures/](../figures/README.md) generated from stored results by
+[scripts/make_figures.py](../scripts/make_figures.py). The course report
 [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx)
 is the current write-up and carries the real results, the four regimes, the
 mechanism caveat and the documented limitations. The manuscript must not be drafted

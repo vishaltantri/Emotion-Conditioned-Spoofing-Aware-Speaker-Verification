@@ -18,6 +18,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0"]
+figures = ["matplotlib>=3.8"]
 
 [project.scripts]
 easv = "easv.cli:main"

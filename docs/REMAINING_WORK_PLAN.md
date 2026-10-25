@@ -8,7 +8,7 @@ what the result was, and what remains. Measured numbers live in
 root causes, is in [PROGRESS_LOG.md](PROGRESS_LOG.md); the remaining methodological
 gap is recorded in [PROTOCOL.md](PROTOCOL.md) section 6.
 
-Last verified: 2026-10-25, 83 tests passing.
+Last verified: 2026-10-25, 85 tests passing.
 
 ## Status at a glance
 
@@ -21,7 +21,7 @@ Last verified: 2026-10-25, 83 tests passing.
 | 4 — pre-register success criteria | **not done** | [PROTOCOL.md](PROTOCOL.md) §6 now records the rules applied and marks the missing pre-registration |
 | 5 — real-data evaluation | **done** | four CM regimes, five arms, grouped and paired bootstrap, per-emotion and per-attack tables |
 | 6 — ablations and depth | **partial, now with the decisive ones** | gate-weight introspection, group breakdowns, SER-confidence ablation and two held-out-emotion folds done; uncertainty-removed overlay and seed repeats still not |
-| 7 — paper writing | **not started** | the course report [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx) is the current write-up; `paper/` and `figures/` are placeholders |
+| 7 — paper writing | **figures done, text not started** | the course report [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx) is the current write-up; `paper/` is still an outline, `figures/` holds the five generated figures |
 
 ## Stage 0 — Environment
 
@@ -166,10 +166,12 @@ only ever run on the synthetic demo.
 
 ## Stage 7 — Paper writing and submission
 
-Not started. `paper/` contains the section outline only, `figures/` contains no
-generated figures, and the manuscript's numbers are not yet generated from
-`results.json` by a script. The course report is the current write-up and does carry
-the real results, with two diagrams.
+The manuscript text is not started; `paper/` contains the section outline only. `figures/` now holds the
+five generated figures ([figures/README.md](../figures/README.md)), produced by
+[scripts/make_figures.py](../scripts/make_figures.py) from stored results rather than
+edited by hand; the manuscript text itself is not yet generated from `results.json`.
+The course report is the current write-up and does carry the real results, with two
+diagrams.
 
 ## What remains, in priority order
 

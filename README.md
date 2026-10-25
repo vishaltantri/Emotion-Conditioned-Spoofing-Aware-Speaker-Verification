@@ -15,7 +15,7 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > [docs/REMAINING_WORK_PLAN.md](docs/REMAINING_WORK_PLAN.md) and the roadmap is
 > [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 >
-> Verified so far: 83 tests, the novelty gate closed on the mechanism and open only
+> Verified so far: 85 tests, the novelty gate closed on the mechanism and open only
 > for a published-baseline reproduction (4+1 papers read at recorded depth; two
 > held-out-emotion folds run), a 53,900-trial real merged manifest (17,900 ESD bona fide +
 > 36,000 EmoSpoof-TTS clones from StyleTTS2, F5-TTS and CosyVoice, `easv audit`
@@ -51,7 +51,7 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 >
 > | stage | state |
 > |---|---|
-> | Evaluation core (manifest/audit/fusion/metrics/CLI, 83 tests) | done |
+> | Evaluation core (manifest/audit/fusion/metrics/CLI, 85 tests) | done |
 > | ESD English subset + manifest (17,900 rows) | done |
 > | EmoSpoof-TTS: all three generators (36,000 wavs), manifest | done |
 > | Merged real manifest + audit | done — 53,900 trials, 0 errors |
@@ -63,13 +63,15 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > | Paired arm-vs-arm contrasts | done — [scripts/compare_arms.py](scripts/compare_arms.py) |
 > | ASVspoof 2019 LA corpus | done — 25,380 train utterances via HF mirror |
 > | AASIST retrained on LA (in-domain) | done — [scripts/train_cm_aasist_la.py](scripts/train_cm_aasist_la.py); 2.11 % EER on held-out LA speakers, 43.8 % on EASV test |
+> | SER-confidence ablation, held-out-emotion folds | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+> | Figure set | done — five generated figures in [figures/](figures/), from [scripts/make_figures.py](scripts/make_figures.py) |
 
 ## Quickstart
 
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python -m pytest -q                       # 83 tests, ~4 s
+.venv/bin/python -m pytest -q                       # 85 tests, ~4 s
 .venv/bin/easv demo --out results/demo --config configs/demo.yaml
 ```
 
@@ -153,7 +155,8 @@ easv manifest-template --out data_manifests/example.csv
 | `results/` | generated reports, per-trial scores and fitted models (git-ignored except `README.md`) |
 | `docs/` | implementation plan, protocol, novelty gate, progress log, real results, remaining-work plan |
 | `scripts/` | manifest builders, ASV/SER/CM score producers, score combiner, in-domain and LA CM trainers, arm-vs-arm comparison, corpus fetchers (`hf_fetch.sh`, `extract_hf_corpora.py`), `run_real_pipeline.sh` (end-to-end entry point) |
-| `paper/`, `figures/` | placeholders for the manuscript and figures |
+| `figures/` | the five generated manuscript figures (`.png` + vector `.pdf`) and their regeneration notes |
+| `paper/` | manuscript workspace — outline only so far |
 
 ## What is implemented vs not
 
@@ -170,7 +173,10 @@ Implemented and tested:
 * real score producers: ECAPA-TDNN ASV, wav2vec2 SER, pretrained AASIST, in-domain
   log-mel CM with leave-one-generator-out training, and AASIST retrained on
   ASVspoof 2019 LA, plus the corpus fetchers and manifest builders;
-* CLI, synthetic demo, 83 tests.
+* CLI, synthetic demo, 85 tests;
+* the figure set, generated from stored results rather than hand-drawn
+  ([scripts/make_figures.py](scripts/make_figures.py), needs the optional
+  `matplotlib` extra).
 
 Not implemented, and known to be open:
 
@@ -188,8 +194,9 @@ Not implemented, and known to be open:
   reference numbers;
 * the ASVspoof 2019 LA evaluation partition (only train was fetched, so the
   retrained CM is validated on two held-out speakers);
-* the manuscript ([paper/README.md](paper/README.md)) and the figure set
-  ([figures/README.md](figures/README.md)) — the course report is the current write-up.
+* the manuscript ([paper/README.md](paper/README.md)) — the course report is the
+  current write-up; the figures it will need now exist in
+  [figures/](figures/README.md).
 
 ### Real-data stage (complete)
 
