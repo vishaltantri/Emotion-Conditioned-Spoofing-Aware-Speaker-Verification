@@ -340,7 +340,7 @@ def update_audit_paragraph(doc) -> None:
             continue
         _set_text(p, (
             "The repository was executed in its supplied virtual environment. The full "
-            "automated suite completed successfully: 85 tests passed. The tests cover "
+            "automated suite completed successfully: 88 tests passed. The tests cover "
             "manifest validation, score alignment, metric direction conventions, threshold "
             "separation, fusion serialization, grouped evaluation, command-line behaviour, "
             "the manifest builders, the arm-vs-arm comparison sign convention, the "
@@ -377,7 +377,7 @@ def update_appendix(doc) -> None:
         t = p.text.strip()
         if t.startswith("1. .venv/bin/python -m pytest -q"):
             _set_text(p, (
-                "1. .venv/bin/python -m pytest -q  ->  85 tests passed.\n"
+                "1. .venv/bin/python -m pytest -q  ->  88 tests passed.\n"
                 "2. .venv/bin/python -m easv demo --out <temporary directory> --config "
                 "configs/demo.yaml  ->  1,660 synthetic trials and five fitted models "
                 "(pipeline smoke test only).\n"

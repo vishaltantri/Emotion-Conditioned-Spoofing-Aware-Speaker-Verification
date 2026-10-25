@@ -7,7 +7,7 @@ implemented, what was executed, and what is still missing. Numbers are in
 [PROGRESS_LOG.md](PROGRESS_LOG.md); the stage-by-stage work plan is
 [REMAINING_WORK_PLAN.md](REMAINING_WORK_PLAN.md).
 
-Last verified 2026-10-25: 85 tests passing, four countermeasure regimes, one
+Last verified 2026-10-25: 88 tests passing, four countermeasure regimes, one
 SER-confidence ablation and two held-out-emotion folds evaluated on 53,900 real
 trials.
 

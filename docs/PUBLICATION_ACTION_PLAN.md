@@ -59,6 +59,23 @@ gate in [docs/NOVELTY_MATRIX.md](NOVELTY_MATRIX.md) closes.
 * Never merge the two-generator and three-generator results into one table.
 * Never describe the gated arm's Regime D win as emotion-conditioned: the gate
   weights refute it (flat 4.02–4.05 / 9.69–9.73 across emotions).
-* Keep EmoSpoof-TTS clones (CC BY 4.0, cited). The ESD fallback corpora
-  (TESS CC BY-NC 4.0, RAVDESS CC BY-NC-SA 4.0, EmoV-DB research licence) would
-  require regenerating all clones — plan of last resort only, if ESD objects.
+* Keep EmoSpoof-TTS clones (CC BY 4.0, cited) for this submission.
+
+## Journal track (decided 2026-10-25): re-anchor on CREMA-D
+
+The journal submission does not wait for ESD and does not depend on it. CREMA-D is
+released under ODbL 1.0 + DbCL 1.0 — open download, no form to get approval, no
+signature, commercial use allowed — so the "licence pending" shadow disappears
+entirely instead of being footnoted. It also fixes the weakest part of the current
+statistics: 91 actors (15 evaluation speakers) instead of 10 (4).
+
+The ESD-derived work becomes the pilot: it generated the protocol, the code, the
+five-arm ladder, the ablations and the hypotheses. The clones are regenerated from
+CREMA-D with the same three systems, at ~16,400 generations rather than 36,000,
+because the speaker count — not the file count — is what carries the evidence.
+Full design, compliance position, costs and risks:
+[CORPUS_STRATEGY.md](CORPUS_STRATEGY.md).
+
+Consequence for this plan: tasks 1–4 remain exactly as they are for the workshop
+paper. Everything in `docs/CORPUS_STRATEGY.md` §8 is journal work that starts after
+the workshop submission goes out.

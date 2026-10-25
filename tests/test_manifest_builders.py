@@ -150,3 +150,71 @@ def test_emospoof_builder(emospoof_root_fixture: Path, tmp_path: Path) -> None:
     assert emo_by_spk[("cosyvoice", "0011")] in {"angry", "neutral"}
     assert emo_by_spk[("f5_tts", "0015")] == "happy"
     _validate_against_easv(out)
+
+
+# ----------------------------------------------------------------------
+# CREMA-D fixture (journal re-anchor: ODbL 1.0, 91 actors)
+# ----------------------------------------------------------------------
+@pytest.fixture
+def crema_root_fixture(tmp_path: Path) -> Path:
+    import wave
+
+    root = tmp_path / "AudioWAV"
+    root.mkdir(parents=True)
+
+    def wav(path: Path, seconds: float) -> None:
+        with wave.open(str(path), "wb") as fh:
+            fh.setnchannels(1)
+            fh.setsampwidth(2)
+            fh.setframerate(16000)
+            fh.writeframes(b"\x00\x00" * int(16000 * seconds))
+
+    sentences = ("IEO", "TAI", "IOM")
+    for actor in [f"10{i:02d}" for i in range(1, 13)]:
+        for emo in ("ANG", "DIS", "FEA", "HAP", "NEU", "SAD"):
+            for sentence in sentences:
+                wav(root / f"{actor}_{sentence}_{emo}_XX.wav", 3.0)
+    # A clip too short for a stable score: must be dropped by the duration filter.
+    wav(root / "1001_IEO_ANG_LO.wav", 1.3)
+    return root
+
+
+def test_crema_manifest_is_actor_disjoint_and_licensed(crema_root_fixture, tmp_path, capsys):
+    out = tmp_path / "m_crema.csv"
+    n = bm.build_manifest_crema(crema_root_fixture, out)
+    capsys.readouterr()
+    assert n > 0
+    rows = _rows(out)
+    _validate_against_easv(out)
+
+    splits: dict[str, set] = {}
+    for row in rows:
+        splits.setdefault(row["split"], set()).add(row["speaker_id"])
+    assert set(splits) == {"train", "dev", "test"}
+    assert splits["test"], "test split must have actors"
+    train, dev, test = splits["train"], splits["dev"], splits["test"]
+    assert not (train & dev) and not (train & test) and not (dev & test)
+
+    assert {r["emotion"] for r in rows} == {"angry", "disgust", "fear", "happy", "neutral", "sad"}
+    assert {r["dataset"] for r in rows} == {"crema-d"}
+    fear = [r for r in rows if r["emotion"] in {"disgust", "fear"}]
+    assert fear and all("not a wav2vec2" in r["notes"] for r in fear)
+
+
+def test_crema_manifest_drops_short_clips(crema_root_fixture, tmp_path, capsys):
+    out = tmp_path / "m_crema.csv"
+    bm.build_manifest_crema(crema_root_fixture, out, min_seconds=2.0)
+    captured = capsys.readouterr().out
+    assert "dropped 1 clip" in captured
+    assert not any(r["trial_id"] == "crema_1001_IEO_ANG_LO" for r in _rows(out))
+
+
+def test_crema_manifest_builds_nontarget_pairs(crema_root_fixture, tmp_path, capsys):
+    out = tmp_path / "m_crema.csv"
+    bm.build_manifest_crema(crema_root_fixture, out, nontarget_per_speaker_emo=3)
+    capsys.readouterr()
+    nontargets = [r for r in _rows(out) if r["trial_type"] == "nontarget"]
+    assert nontargets
+    for row in nontargets:
+        assert row["speaker_id"] != row["claimed_speaker"]
+        assert row["emotion"] in {"angry", "happy", "neutral", "sad"}

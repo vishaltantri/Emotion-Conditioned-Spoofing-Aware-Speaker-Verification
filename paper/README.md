@@ -28,7 +28,11 @@ Manuscript drafting is blocked on two things, not on missing results:
    terms say "free to use only for research purpose", the EmoSpoof-TTS clones are
    CC BY 4.0 with no ESD audio inside, and the licence email
    ([docs/ESD_LICENCE_EMAIL.md](../docs/ESD_LICENCE_EMAIL.md)) is a courtesy that
-   converts "probably fine" into "documented". See
+   converts "probably fine" into "documented". For the **journal** submission this
+   ambiguity is removed rather than footnoted: the corpus is re-anchored on CREMA-D
+   (ODbL 1.0, no request needed, 91 actors instead of 10), with clones regenerated
+   from the same three systems. Design, compliance position and costs:
+   [docs/CORPUS_STRATEGY.md](../docs/CORPUS_STRATEGY.md). See also
    [docs/PUBLICATION_ACTION_PLAN.md](../docs/PUBLICATION_ACTION_PLAN.md).
 
 Target venue per the action plan: an ASVspoof/ICASSP/Interspeech workshop, framed

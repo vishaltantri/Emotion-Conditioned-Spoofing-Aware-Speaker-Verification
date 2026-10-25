@@ -8,7 +8,7 @@ what the result was, and what remains. Measured numbers live in
 root causes, is in [PROGRESS_LOG.md](PROGRESS_LOG.md); the remaining methodological
 gap is recorded in [PROTOCOL.md](PROTOCOL.md) section 6.
 
-Last verified: 2026-10-25, 85 tests passing.
+Last verified: 2026-10-25, 88 tests passing.
 
 ## Status at a glance
 
