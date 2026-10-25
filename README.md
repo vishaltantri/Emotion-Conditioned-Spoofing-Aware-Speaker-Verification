@@ -179,7 +179,11 @@ Implemented and tested:
 * CLI, synthetic demo, 97 tests;
 * the figure set, generated from stored results rather than hand-drawn
   ([scripts/make_figures.py](scripts/make_figures.py), needs the optional
-  `matplotlib` extra).
+  `matplotlib` extra);
+* both ablation overlays on the real corpus (they had been synthetic-only until
+  2026-10-25): removing the uncertainty features changes no arm by more than 0.03
+  points, and the dev-FAR ≤ 1 % operating point keeps the arm ordering
+  (`results/real/abl_unc_{A,D}`, `abl_far_{A,D}`).
 
 Not implemented, and known to be open:
 
@@ -189,10 +193,6 @@ Not implemented, and known to be open:
   that exist (`angry`, `neutral`) were run in the working-CM regime, where the CM
   itself transfers to the unseen emotion at 0.03 % EER, so they stress the fusion
   stage only (see PROTOCOL section 6 and REAL_RESULTS);
-* the two ablation overlays are done on the real corpus (they were synthetic-only
-  until 2026-10-25): removing the uncertainty features changes no arm by more than
-  0.03 points, and the dev-FAR ≤ 1 % operating point keeps the arm ordering
-  (`results/real/abl_unc_{A,D}`, `abl_far_{A,D}`);
 * reproduction of a published baseline under a matched protocol, which is the
   remaining novelty-gate item and would also validate the metric code against
   reference numbers;
