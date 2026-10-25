@@ -1,12 +1,15 @@
 # Prior-art matrix and novelty gate
 
-**Status: partially verified (2026-10-23).** The four closest papers have been
+**Status: partially verified (2026-10-25).** The four closest papers have been
 read at the depth recorded below and the matrix is filled from those readings;
-metadata-only rows say so. Two gate items remain open: reproduction of a strong
-published baseline under a matched protocol, and a held-out-emotion evaluation.
-The proposed method has now been executed on real data, so its row reports
-measured behaviour rather than "untested". Until the two open items close, no
-novelty claim — and no "first" or "state of the art" wording — is permitted.
+metadata-only rows say so. One gate item remains open: reproduction of a strong
+published baseline under a matched protocol. The held-out-emotion evaluation is
+done (two folds, `angry` and `neutral`; excluding an emotion from countermeasure
+training and from the fusion fit costs ≤0.03 points on that emotion), and the
+proposed method has been executed on real data, so its row reports measured
+behaviour rather than "untested". Until the baseline item closes, no novelty
+claim — and no "first" or "state of the art" wording — is permitted, and the
+mechanism claim stays closed as a negative result.
 
 ## Comparison matrix
 
@@ -21,7 +24,7 @@ novelty claim — and no "first" or "state of the art" wording — is permitted.
 | WavLM | n/a (encoder) | n/a | n/a | yes | n/a | n/a | n/a | no |
 | ECAPA-TDNN | yes | no | no | no | n/a | n/a | n/a | no |
 | AASIST | no | yes | no | no | n/a | n/a | n/a | no |
-| Proposed method | yes | yes | yes (probs + uncertainty) | planned (WavLM/HuBERT); realised only through the wav2vec2 SER front-end | emotion-conditioned gated fusion (implemented, tested on 53,900 real trials) | **yes** — StyleTTS2 held out of CM training; 2.50 % EER on the unseen generator | descriptive only: every emotion appears in train, so no held-out-emotion test | this repo |
+| Proposed method | yes | yes | yes (probs + uncertainty) | planned (WavLM/HuBERT); realised only through the wav2vec2 SER front-end | emotion-conditioned gated fusion (implemented, tested on 53,900 real trials) | **yes** — StyleTTS2 held out of CM training; 2.50 % EER on the unseen generator | **tested**: `angry` and `neutral` folds, emotion excluded from CM training and fusion fit — no measurable loss on the held-out emotion (≤0.03 pts) | this repo |
 
 For each row, also record: features, encoder, training objective, where fusion
 happens, losses, datasets and splits, metrics, baselines, stated limitations, and
@@ -171,9 +174,15 @@ ScienceDirect, arXiv — with date filters and both exact-title and concept sear
       omission is justified.
   - Cross-generator: **done** (F5-TTS held out at 6.27 % CM-EER; StyleTTS2 held out
     at 2.50 %), with the results reported side by side.
-  - Cross-emotion: **not done**. Every emotion condition appears in the training
-    split, so the per-emotion tables are descriptive. A held-out-emotion split is the
-    missing experiment; [PROTOCOL.md](PROTOCOL.md) section 6 records it as open.
+  - Cross-emotion: **done** (2026-10-25) for `angry` and `neutral` — the emotion is
+    removed from countermeasure training and from the fusion fit's train/dev, and
+    scored on its own untouched test trials. The held-out emotion is detected at
+    0.03 % CM-EER and SASV-EER moves by at most 0.03 points, so the pipeline
+    generalises to an unseen emotion; the reason is that the emotion features carry
+    little emotion-specific structure, not that they generalise well. Remaining: a
+    fold against a failing countermeasure, and `surprise` (bona fide only).
+    [PROTOCOL.md](PROTOCOL.md) section 6 and [REAL_RESULTS.md](REAL_RESULTS.md)
+    record both the result and the caveat.
 
 ## Method-distinction paragraph (to write after the gate)
 
@@ -187,3 +196,4 @@ this file supports it.
 | date | decision | justification | who |
 |---|---|---|---|
 | 2026-10-21 | **conditional GO** (implementation may proceed) | All four closest papers verified at recorded depth; the multi-task SR-ASV paper (Zhao et al. 2022) verified — it is an integrated multi-task model without emotion, not a fusion layer, so it does not cover the proposed method. No verified source implements SASV fusion with per-trial emotion-and-uncertainty-conditioned weights. Two gate items remain closable only through a real-data run: baseline reproducibility under a matched protocol, and cross-generator + cross-emotion evaluation. Novelty claims stay sealed until Stage-5 evaluation and the pre-registered criteria are judged. | Buffy (agent), on behalf of the project owner |
+| 2026-10-25 | **GO for a workshop measurement paper; mechanism claim withdrawn** | The real-data evaluation is complete on the arms it can test: five-arm ladder over four countermeasure regimes, cross-generator control, SER-confidence ablation and two held-out-emotion folds. The mechanism claim (emotion-conditioned gating as the source of the gain) is withdrawn on three independent measurements — flat per-emotion gate weights, a single confidence scalar reproducing the Regime D edge, and a free held-out-emotion fold. What remains permitted is the honest delta: generator-specific ASV vulnerability to emotional clones, transfer governed by generator adjacency rather than ASVspoof lineage, and a quantified account of why emotion-conditioned fusion does not deliver. Baseline reproduction stays open and is declared a limitation rather than blocking the workshop submission. | Buffy (agent), on behalf of the project owner |

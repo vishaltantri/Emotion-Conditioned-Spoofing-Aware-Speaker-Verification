@@ -499,3 +499,39 @@ the feature construction differs.
 gated arm's Regime D win is reported as a calibrated decision function, never as
 emotion conditioning. Full tables: [REAL_RESULTS.md](REAL_RESULTS.md), section
 "SER-confidence ablation".
+
+## 2026-10-25 — Held-out-emotion folds: the objection closes, the mechanism does not come back
+
+The remaining reviewer objection was "emotion-aware, but never tested on an emotion
+the system had not seen". Two folds answer it: `angry` and `neutral`.
+
+**Implementation.** `scripts/train_cm_indomain.py` gained `--holdout-emotion`,
+reusing the same leave-one-out machinery as `--holdout-attack` (excluded from
+training *and* from dev-based early stopping, and reported separately in
+`metrics.json`). `src/easv/evaluation.py` gained `folds.holdout_emotion`, which
+drops the emotion from the fusion fit's train and dev batches and leaves the test
+split intact, so the held-out trials are scored by a pipeline that never saw that
+emotion. Exposed through the CLI's existing `--set` override; covered by two new
+tests (fold leaves test intact; unknown emotion is rejected). A bug was caught on
+the way: the fold filter ran *after* `y_train` was computed, desyncing labels from
+features — fixed by moving it above label extraction.
+
+**Runs.** CM retrains `cm_holdout_emo_angry` / `cm_holdout_emo_neutral` (21,560 →
+16,520 train trials), then four evaluations: `run5_holdout_{angry,neutral}_{on,off}`,
+where `off` keeps all five emotions in the fusion fit and `on` excludes the held-out
+one. The pair is the measurement: what was the emotion identity worth?
+
+**Outcome.** Nothing. The held-out CM detects the excluded emotion at 0.03 % EER
+(overall 0.08 %); overall test SASV-EER moves by 0.01–0.06 points between fold on
+and off; on the held-out emotion's own 5,040 test trials the largest change is
+0.03 points and every paired CI contains zero (gated `angry` −0.01 pts, CI
+−0.06…+0.00, p=0.77; `neutral` +0.03, CI 0.00…+0.13, p=1.00).
+
+The objection is closed — the method transfers to unseen emotions — but the reason
+is unflattering and worth stating plainly: the arms lose nothing because they were
+never using emotion identity for much. That is now the third independent signal in
+the same direction, after the flat per-emotion gate weights and the SER-confidence
+scalar reproducing the Regime D edge. `scripts/compare_arms.py` gained `--emotion`
+so a contrast can be scoped to one condition's test trials. Tables and caveats
+(the fold was run only against a working CM): [REAL_RESULTS.md](REAL_RESULTS.md),
+section "Held-out-emotion folds".

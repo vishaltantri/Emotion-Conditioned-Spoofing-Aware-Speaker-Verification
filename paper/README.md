@@ -9,16 +9,20 @@ caveats the data requires.
 
 Manuscript drafting is blocked on two things, not on missing results:
 
-1. **The novelty gate is still conditionally closed.** The closest work has been read
-   and recorded in [docs/NOVELTY_MATRIX.md](../docs/NOVELTY_MATRIX.md), but no
-   published baseline has been reproduced under a matched protocol, and no
-   held-out-emotion evaluation exists. Without those, a paper can describe a corpus,
-   a protocol and a measured finding, but not a demonstrated advantage of the
-   proposed mechanism — the measured gate weights are flat across emotions, and the
+1. **The novelty gate is closed on the mechanism and open only for a baseline
+   reproduction.** The closest work has been read and recorded in
+   [docs/NOVELTY_MATRIX.md](../docs/NOVELTY_MATRIX.md). The held-out-emotion
+   evaluation now exists (two folds; excluding an entire emotion from CM training
+   and from the fusion fit costs ≤0.03 points on that emotion) so the
+   "never tested on an unseen emotion" objection is answered, but no published
+   baseline has been reproduced under a matched protocol. A paper can describe a
+   corpus, a protocol and a measured finding, but not a demonstrated advantage of
+   the proposed mechanism — the measured gate weights are flat across emotions, the
    SER-confidence ablation reproduces the gated arm's Regime D edge with a single
-   scalar (see [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md)). The mechanism claim
-   is therefore closed as a negative result; the paper's contribution is the
-   evaluation, the transfer findings and the mechanism analysis.
+   scalar, and the held-out-emotion fold is free because the arms were hardly using
+   emotion identity (see [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md)). The
+   mechanism claim is therefore closed as a negative result; the paper's
+   contribution is the evaluation, the transfer findings and the mechanism analysis.
 2. **The corpus licence.** ESD's research licence was never granted (the audio came
    from a public mirror), but a workshop submission does not require it: ESD's own
    terms say "free to use only for research purpose", the EmoSpoof-TTS clones are
@@ -29,7 +33,7 @@ Manuscript drafting is blocked on two things, not on missing results:
 
 Target venue per the action plan: an ASVspoof/ICASSP/Interspeech workshop, framed
 as a measurement and negative-result paper; a journal submission waits for the
-licence plus the held-out-emotion and baseline-reproduction items.
+licence plus the baseline-reproduction item (the held-out-emotion item is done).
 
 When drafting starts, the constraints are recorded in
 [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md) ("What these results do and do not

@@ -128,3 +128,26 @@ def test_manifest_template_command(tmp_path):
     target = tmp_path / "template.csv"
     assert main(["manifest-template", "--out", str(target)]) == 0
     assert target.read_text(encoding="utf-8").startswith("trial_id,split,speaker_id,claimed_speaker")
+
+
+def test_repeated_set_flags_accumulate(tmp_path, capsys):
+    """Two --set flags must both apply; the last one used to replace the first."""
+    out = tmp_path / "demo"
+    assert main(["demo", "--out", str(out), "--seed", "11", "--set", *FAST]) == 0
+    capsys.readouterr()
+    second = tmp_path / "fold"
+    code = main(
+        [
+            "evaluate",
+            "--manifest", str(out / "data" / "manifest.csv"),
+            "--scores", str(out / "data" / "scores.csv"),
+            "--config", "configs/demo.yaml",
+            "--out", str(second),
+            "--set", *FAST,
+            "--set", "splits.test=test",
+        ]
+    )
+    assert code == 0, capsys.readouterr().out
+    config = json.loads((second / "results.json").read_text(encoding="utf-8"))["config"]
+    assert config["splits"]["test"] == "test"
+    assert config["training"]["gated"]["epochs"] == 120  # first flag survived

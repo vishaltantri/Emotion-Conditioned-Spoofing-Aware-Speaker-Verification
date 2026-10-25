@@ -253,6 +253,59 @@ PYTHONPATH=src .venv/bin/python -m easv evaluate \
     --a emotion_gated --b emotion_gated
 ```
 
+## Held-out-emotion folds: nothing is memorised, because nothing is used
+
+The objection this closes is "emotion-aware, but was it ever tested on an emotion
+it had not seen?". Two folds were run: `angry` and `neutral`. In each, the
+emotion is removed from **both** stages that could learn it — the countermeasure
+training and the fusion fit (train + dev, so the threshold and any per-emotion
+weight come only from the other four emotions). The test split is untouched, so
+the held-out trials are scored by a pipeline that never saw that emotion.
+
+The exclusion is real: train 21,560 → 16,520 trials, dev 10,780 → 8,260; the
+countermeasure's own metrics confirm it, at 0.03 % CM-EER on the excluded
+emotion's test trials (overall 0.08 %) for both folds — clones are spectrally
+unnatural whatever emotion they carry.
+
+Each held-out CM is paired with two fusion fits: **fold off** (all five emotions
+in the fit, the parent behaviour) and **fold on** (the emotion excluded). Comparing
+the pair isolates what the emotion identity was worth to the fusion stage.
+
+Whole test split, SASV-EER (n = 21,560):
+
+| held out | fit | linear | additive | interaction | gated |
+|---|---|---:|---:|---:|---:|
+| `angry` | fold off | 0.51 % | 0.59 % | 0.47 % | 0.61 % |
+| `angry` | fold on | 0.52 % | 0.61 % | 0.52 % | 0.61 % |
+| `neutral` | fold off | 0.36 % | 0.45 % | 0.38 % | 0.53 % |
+| `neutral` | fold on | 0.36 % | 0.46 % | 0.34 % | 0.47 % |
+
+On the held-out emotion's own test trials (n = 5,040), fold-on vs fold-off,
+paired grouped bootstrap over claimed speakers:
+
+| held out | arm | fold off | fold on | paired gain | 95 % CI | p(not worse) |
+|---|---|---:|---:|---:|---|---:|
+| `angry` | linear | 0.43 % | 0.43 % | −0.006 pts | −0.071 … +0.055 | 0.81 |
+| `angry` | interaction | 0.36 % | 0.36 % | −0.008 pts | −0.077 … +0.027 | 0.72 |
+| `angry` | gated | 0.55 % | 0.57 % | −0.008 pts | −0.055 … +0.000 | 0.77 |
+| `neutral` | linear | 0.16 % | 0.16 % | +0.000 pts | −0.027 … +0.027 | 0.86 |
+| `neutral` | interaction | 0.21 % | 0.21 % | +0.000 pts | +0.000 … +0.000 | 1.00 |
+| `neutral` | gated | 0.29 % | 0.27 % | +0.029 pts | +0.000 … +0.126 | 1.00 |
+
+**The pipeline transfers to unseen emotions with no measurable loss** — the
+largest difference anywhere is 0.03 points, and every interval at that scale
+contains zero. But the reason is not that the arms generalise *well*; it is that
+they had almost nothing emotion-specific to lose. That is the third independent
+signal pointing the same way: the gate weights are flat across emotions, a single
+SER-confidence scalar reproduces the Regime D edge, and deleting an entire
+emotion from the fit changes nothing. An arm that genuinely conditioned on emotion
+would show a fold cost; these do not.
+
+Caveat: the held-out fold is measured against a countermeasure that transfers to
+the unseen emotion almost perfectly (0.03 %). The CM axis is therefore not the one
+under stress here — this experiment tests the fusion stage. On a failing CM
+(Regime B) the fold could bite much harder, and that has not been run.
+
 ## What these results do and do not establish
 
 Established (measured, real audio, dev-only thresholds, test reported once):
@@ -281,17 +334,27 @@ Established (measured, real audio, dev-only thresholds, test reported once):
 * the gated arm's Regime D edge is **fully reproduced by the confidence scalar
   alone** (1.49 % vs 1.54 %, indistinguishable, p=0.76), so it is a capacity and
   calibration effect, not emotion conditioning — two independent measurements
-  now rule the mechanism out.
+  now rule the mechanism out;
+* excluding an entire emotion from both countermeasure training and fusion fitting
+  costs **no measurable accuracy on that emotion** (≤0.03 points on 5,040 held-out
+  trials, every CI spanning zero, two folds), so the pipeline is not relying on
+  memorised emotion identities — and it loses nothing because it was hardly using
+  them.
 
 Not established:
 
 * that emotion *conditioning* — as opposed to extra capacity and a better
   calibration of the same two signals — produces the Regime D gain; the gate
   weights say it does not;
+* any *emotion-conditioned* behaviour that survives a held-out emotion: the fold
+  is free precisely because the emotion features contribute little beyond a
+  spoof-correlated scalar;
 * a cross-generator *benefit* from the gated arm in the two-generator corpus
   (Regime C: +0.27 pts, CI includes zero) — the positive result appears only once
   the third generator is present, and the two settings have to be reported side
-  by side rather than merged.
+  by side rather than merged;
+* held-out-emotion behaviour against a failing countermeasure (Regime B); only
+  the working-CM regime was folded.
 
 ## Reproduce
 
@@ -315,6 +378,28 @@ D=/home/vct/data/easv
 .venv/bin/python scripts/compare_arms.py --results results/real/run4_3gen_crossgen \
     --manifest results/e2e/merged_manifest.csv \
     --a emotion_gated --b emotion_interaction
+
+# held-out-emotion folds: exclude the emotion from CM training AND from the fusion fit
+for EMO in angry neutral; do
+  .venv/bin/python scripts/train_cm_indomain.py --manifest results/e2e/merged_manifest.csv \
+      --out-dir $D/real/cm_holdout_emo_$EMO --holdout-emotion $EMO
+  .venv/bin/python scripts/combine_scores.py --speaker $D/real/scores_asv_merged.csv \
+      --cm $D/real/cm_holdout_emo_$EMO/scores_cm_indomain.csv \
+      --emotion $D/real/scores_ser_merged.csv --out $D/real/scores_combined_emo_$EMO.csv
+  # fold off: fusion sees all five emotions (what the emotion identity is worth)
+  .venv/bin/python -m easv.cli evaluate --manifest results/e2e/merged_manifest.csv \
+      --scores $D/real/scores_combined_emo_$EMO.csv --config configs/real_run.yaml \
+      --out results/real/run5_holdout_${EMO}_off
+  # fold on: the emotion is also excluded from fusion train/dev
+  .venv/bin/python -m easv.cli evaluate --manifest results/e2e/merged_manifest.csv \
+      --scores $D/real/scores_combined_emo_$EMO.csv --config configs/real_run.yaml \
+      --set folds.holdout_emotion=$EMO --out results/real/run5_holdout_${EMO}_on
+  # paired contrast on the held-out emotion's own test trials
+  .venv/bin/python scripts/compare_arms.py --results results/real/run5_holdout_${EMO}_on \
+      --results-b results/real/run5_holdout_${EMO}_off \
+      --manifest results/e2e/merged_manifest.csv \
+      --a emotion_gated --b emotion_gated --emotion $EMO
+done
 
 # ASVspoof 2019 LA: build the manifest, then retrain AASIST in-domain
 .venv/bin/python scripts/build_manifests.py asvspoof \

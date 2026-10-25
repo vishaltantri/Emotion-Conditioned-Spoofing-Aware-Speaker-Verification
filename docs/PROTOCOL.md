@@ -46,8 +46,10 @@ are only made for attack families present in the evaluation data.
    an exception via `--allow-speaker-overlap`.
 6. Cross-generator claims require the test generators to be absent from training;
    `easv audit` reports generator overlap for exactly this check.
-7. Cross-emotion claims require held-out emotion conditions; the audit reports
-   emotions that appear in test but not in train.
+7. Cross-emotion claims require held-out emotion conditions: the emotion must be
+   absent from both the countermeasure training and the fusion fit (`folds.holdout_emotion`
+   plus `--holdout-emotion`), and the fold must leave the test split intact. The
+   audit additionally reports emotions that appear in test but not in train.
 8. Leakage audits (`easv audit`) are part of the protocol, not optional reporting.
 
 ## 4. Metrics
@@ -183,7 +185,7 @@ three-generator results are reported side by side for that reason.
 | must-hold generalization track | cross-generator (StyleTTS2 held out of CM training), added once the third generator landed | **post hoc** |
 | acceptable bona-fide FRR increase | no margin was fixed; target acceptance is reported at the dev-selected EER threshold (96.0 % gated vs 93.8 % linear in the three-generator run). The 1 % FAR-budget policy exists as an overlay but has only been run on synthetic data | **not pre-registered** |
 | statistical requirement | paired grouped-bootstrap interval, speakers as resampling unit, 1,000 resamples, seed 7 | fixed before the run |
-| cross-emotion track | **not run**: every emotion condition appears in train, so per-emotion breakdowns are descriptive, not a held-out-emotion test | open |
+| cross-emotion track | **run** (2026-10-25) for `angry` and `neutral`: the emotion is excluded from CM training *and* from the fusion fit's train/dev, then scored on its own untouched test trials. Result: ≤0.03 points change on the held-out emotion (5,040 trials each), every paired CI spanning zero — a null result that closes the objection without supporting the mechanism. Not run: folds against a failing countermeasure, and `surprise` (bona fide only, no spoof trials, so it cannot be folded for spoof detection) | done, with that caveat |
 
 ## 7. Reporting checklist
 

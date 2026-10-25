@@ -192,3 +192,29 @@ def test_confidence_only_features_collapse_the_emotion_vector(small_dataset):
         assert by_name[name]["test"]["at_dev_threshold"]["threshold"] == base[name]["test"]["at_dev_threshold"]["threshold"]
     # The gate summary must still be produced (1-D emotion representation).
     assert by_name["emotion_gated"]["gate_weights"] is not None
+
+
+def test_holdout_emotion_fold_keeps_test_intact(small_dataset):
+    """The fold removes one emotion from fitting/threshold selection only."""
+
+    joined, _ = small_dataset
+    emotion = sorted(set(joined.batch("train").emotions))[0]
+    full = evaluate(joined, SMALL_CONFIG)
+    config = {**SMALL_CONFIG, "folds": {"holdout_emotion": emotion}}
+    result = evaluate(joined, config)
+    assert result["folds"]["holdout_emotion"] == emotion
+    assert any("Held-out-emotion fold" in caveat for caveat in result["caveats"])
+    # fitting split shrinks, test split keeps every trial
+    assert result["splits"]["train"]["n_trials"] < full["splits"]["train"]["n_trials"]
+    assert result["splits"]["test"]["n_trials"] == full["splits"]["test"]["n_trials"]
+    # the held-out condition is still reported in the per-emotion breakdown
+    for entry in result["models"]:
+        if entry.get("breakdown_sasv_eer", {}).get("emotion"):
+            assert emotion in entry["breakdown_sasv_eer"]["emotion"]
+
+
+def test_holdout_emotion_fold_rejects_unknown_emotion(small_dataset):
+    joined, _ = small_dataset
+    config = {**SMALL_CONFIG, "folds": {"holdout_emotion": "no-such-emotion"}}
+    with pytest.raises(ValueError, match="does not appear in the test split"):
+        evaluate(joined, config)

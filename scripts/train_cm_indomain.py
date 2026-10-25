@@ -15,7 +15,12 @@ optimistic and says nothing about unseen attack systems. With
 ``--holdout-attack <generator>`` that generator is excluded from training and
 from dev-based early stopping, which turns the run into the cross-generator
 generalisation test used for the headline results (0.09 % in-domain, 6.27 % on
-held-out F5-TTS, 2.50 % on held-out StyleTTS2).
+held-out F5-TTS, 2.50 % on held-out StyleTTS2). ``--holdout-emotion <emotion>``
+works the same way over ground-truth emotion conditions: the countermeasure never
+sees that emotion's bona fide or spoof audio, and its dev-selected checkpoint
+never peeked at it, so the held-out emotion's CM-EER is the emotion-generalisation
+measure. Pair it with ``folds.holdout_emotion`` in the fusion config, which keeps
+the same condition out of fusion fitting and threshold selection.
 
 Outputs `trial_id,cm_score` for every trial (higher = more bona fide), a JSON
 metrics file and the model state dict.
@@ -171,6 +176,10 @@ def main() -> None:
     ap.add_argument("--holdout-attack", default=None,
                     help="generator excluded from training entirely; its rows are only "
                          "scored, which turns the run into a cross-generator test")
+    ap.add_argument("--holdout-emotion", default=None,
+                    help="ground-truth emotion condition excluded from training AND from "
+                         "dev-based early stopping; all rows are still scored, so the "
+                         "held-out emotion's EER measures emotion generalisation")
     args = ap.parse_args()
 
     import torch
@@ -193,15 +202,31 @@ def main() -> None:
         n_spoof = sum(1 for r in rs if r["trial_type"] == "spoof")
         print(f"{split}: {len(rs)} trials ({n_spoof} spoof)", flush=True)
 
-    holdout = args.holdout_attack
-    if holdout:
-        held = sum(1 for r in rows if r["attack"] == holdout)
+    holdout_attack = args.holdout_attack
+    holdout_emotion = args.holdout_emotion
+    if holdout_attack and holdout_emotion:
+        raise SystemExit("use one holdout per run: --holdout-attack or --holdout-emotion")
+    if holdout_attack:
+        held = sum(1 for r in rows if r["attack"] == holdout_attack)
         if held == 0:
-            raise SystemExit(f"holdout attack '{holdout}' not present in the manifest")
-        print(f"cross-generator run: '{holdout}' ({held} spoof trials) excluded from "
+            raise SystemExit(f"holdout attack '{holdout_attack}' not present in the manifest")
+        print(f"cross-generator run: '{holdout_attack}' ({held} spoof trials) excluded from "
               f"training and reported separately", flush=True)
+    if holdout_emotion:
+        held = sum(1 for r in rows if r.get("emotion") == holdout_emotion)
+        if held == 0:
+            raise SystemExit(f"holdout emotion '{holdout_emotion}' not present in the manifest")
+        print(f"held-out-emotion run: '{holdout_emotion}' ({held} trials) excluded from "
+              f"training and from dev-based early stopping; still scored", flush=True)
 
-        # Python 3.14 defaults to the forkserver start method, which refuses to
+    def excluded(r: dict) -> bool:
+        if holdout_attack and r["attack"] == holdout_attack:
+            return True
+        if holdout_emotion and r.get("emotion") == holdout_emotion:
+            return True
+        return False
+
+    # Python 3.14 defaults to the forkserver start method, which refuses to
     # pickle locally defined classes; fork is fine for a read-only dataset.
     torch.multiprocessing.set_start_method("fork", force=True)
 
@@ -211,7 +236,7 @@ def main() -> None:
                           drop_last=shuffle)
 
     def without_holdout(rs):
-        return [r for r in rs if r["attack"] != holdout] if holdout else rs
+        return [r for r in rs if not excluded(r)] if (holdout_attack or holdout_emotion) else rs
 
     train_loader = make_loader(without_holdout(by_split["train"]), True)
     dev_loader = make_loader(without_holdout(by_split["dev"]), False)
@@ -263,10 +288,13 @@ def main() -> None:
     # --- score every split with the dev-selected model -----------------------
     scores: dict[str, float] = {}
     metrics = {"provenance": "real", "model": "logmel_cnn", "best_epoch": best_epoch,
-               "dev_cm_eer": best_eer, "holdout_attack": holdout,
-               "note": ("in-domain CM: trained on ESD bona fide vs EmoSpoof clones" if not holdout
-                        else f"cross-generator CM: '{holdout}' excluded from training and dev "
-                             f"selection, scored for generalisation")}
+               "dev_cm_eer": best_eer, "holdout_attack": holdout_attack,
+               "holdout_emotion": holdout_emotion,
+               "note": ("in-domain CM: trained on ESD bona fide vs EmoSpoof clones" if not (holdout_attack or holdout_emotion)
+                        else f"cross-generator CM: '{holdout_attack}' excluded from training and dev "
+                             f"selection, scored for generalisation" if holdout_attack
+                        else f"held-out-emotion CM: '{holdout_emotion}' excluded from training and "
+                             f"dev selection, scored for generalisation")}
     for split, rs in by_split.items():
         loader = make_loader(rs, False)
         raw = score_loader(loader)
@@ -276,16 +304,26 @@ def main() -> None:
         metrics[f"{split}_cm_eer"] = float(eer)
         metrics[f"{split}_n"] = len(rs)
         print(f"{split}: CM-EER = {100 * eer:.2f}%", flush=True)
-        if holdout:
+        if holdout_attack:
             # held-out rows are all spoof, so the comparison set must add the
             # bona fide trials of the same split; EER inside the spoof-only
             # subset is undefined (single class).
             idx = [i for i, r in enumerate(rs)
-                   if r["attack"] == holdout or r["trial_type"] != "spoof"]
+                   if r["attack"] == holdout_attack or r["trial_type"] != "spoof"]
             if idx and any(lab[i] for i in idx) and not all(lab[i] for i in idx):
                 sub_eer = compute_eer(s[idx], lab[idx]).eer
-                metrics[f"{split}_heldout_{holdout}_cm_eer"] = float(sub_eer)
-                print(f"{split}: held-out generator {holdout} CM-EER = "
+                metrics[f"{split}_heldout_{holdout_attack}_cm_eer"] = float(sub_eer)
+                print(f"{split}: held-out generator {holdout_attack} CM-EER = "
+                      f"{100 * sub_eer:.2f}% (n={len(idx)})", flush=True)
+        if holdout_emotion:
+            # the held-out emotion subset contains bona fide AND spoof rows of
+            # the same split, so its EER is directly defined
+            idx = [i for i, r in enumerate(rs) if r.get("emotion") == holdout_emotion]
+            if idx and any(lab[i] for i in idx) and not all(lab[i] for i in idx):
+                sub_eer = compute_eer(s[idx], lab[idx]).eer
+                metrics[f"{split}_heldout_{holdout_emotion}_cm_eer"] = float(sub_eer)
+                metrics[f"{split}_heldout_{holdout_emotion}_n"] = len(idx)
+                print(f"{split}: held-out emotion {holdout_emotion} CM-EER = "
                       f"{100 * sub_eer:.2f}% (n={len(idx)})", flush=True)
         for i, r in enumerate(rs):
             scores[r["trial_id"]] = float(s[i])

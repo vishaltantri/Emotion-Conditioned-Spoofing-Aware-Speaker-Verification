@@ -49,6 +49,12 @@ from easv.scores import JoinedData, TrialBatch
 DEFAULT_CONFIG: dict[str, Any] = {
     "seed": 7,
     "splits": {"train": "train", "dev": "dev", "test": "test"},
+    # Generalisation folds: a ground-truth emotion named here is excluded from
+    # fusion fitting and from dev threshold selection (test keeps every trial and
+    # the per-emotion breakdown carries the held-out condition's numbers). Pair
+    # with train_cm_indomain.py --holdout-emotion, which applies the same
+    # exclusion to the countermeasure.
+    "folds": {"holdout_emotion": None},
     "models": list(MODEL_ORDER),
     "training": {
         "l2": 1e-3,
@@ -303,6 +309,15 @@ def evaluate(
     if len(train) == 0:
         raise ValueError(f"train split '{splits['train']}' has no joined trials")
 
+    fold_emotion = config.get("folds", {}).get("holdout_emotion") or None
+    if fold_emotion:
+        if fold_emotion not in set(test.emotions):
+            raise ValueError(f"folds.holdout_emotion '{fold_emotion}' does not appear in the test split")
+        train = train.subset([e != fold_emotion for e in train.emotions])
+        dev = dev.subset([e != fold_emotion for e in dev.emotions])
+        if len(train) == 0 or len(dev) == 0:
+            raise ValueError("the holdout-emotion fold emptied the train or dev split")
+
     y_train = _target_labels(train)
     y_dev = _target_labels(dev)
     y_test = _target_labels(test)
@@ -327,6 +342,7 @@ def evaluate(
             for name, batch in (("train", train), ("dev", dev), ("test", test))
         },
         "provenance": _jsonable(config.get("provenance", {})),
+        "folds": {"holdout_emotion": fold_emotion},
         "models": [],
         "component_baselines": {},
         "audit": audit.as_dict() if audit is not None else None,
@@ -481,6 +497,12 @@ def evaluate(
         "models": {name: [float(v) for v in scores] for name, scores in test_scores.items()},
     }
 
+    if fold_emotion:
+        results["caveats"].append(
+            f"Held-out-emotion fold: '{fold_emotion}' trials are excluded from fusion "
+            "fitting and from dev threshold selection; test reports every trial, and the "
+            "per-emotion breakdown carries the held-out condition's generalisation numbers."
+        )
     if results["provenance"].get("kind") == "synthetic":
         results["caveats"].append(
             "Synthetic demonstration data: scores are simulated. Numbers validate the pipeline, "
@@ -584,6 +606,15 @@ def render_markdown(result: Mapping[str, Any], audit: AuditReport | None = None)
     if provenance.get("note"):
         lines.append("")
         lines.append(f"> {provenance['note']}")
+    fold_emotion = (result.get("folds") or {}).get("holdout_emotion")
+    if fold_emotion:
+        lines.append("")
+        lines.append(
+            f"**Held-out-emotion fold: `{fold_emotion}`** — excluded from the fusion fit's "
+            "train and dev splits (and from whatever produced the countermeasure scores); "
+            "the test split is untouched, so its trials are scored by a pipeline that never "
+            "saw that emotion."
+        )
     for caveat in result.get("caveats", []):
         lines.append("")
         lines.append(f"**Caveat:** {caveat}")

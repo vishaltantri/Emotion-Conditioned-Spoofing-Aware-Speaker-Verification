@@ -190,7 +190,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="config file; repeat to layer a partial config (ablation) on a base config",
     )
     evaluate_cmd.add_argument("--out", required=True)
-    evaluate_cmd.add_argument("--set", nargs="*", default=[], help="config overrides, e.g. --set splits.test=eval")
+    evaluate_cmd.add_argument(
+        "--set", nargs="+", action="extend", default=[],
+        help="config overrides, e.g. --set splits.test=eval folds.holdout_emotion=angry "
+             "(repeatable; every occurrence accumulates rather than replacing the previous one)")
     evaluate_cmd.add_argument("--allow-missing-scores", action="store_true", help="tolerate manifest trials without scores")
     evaluate_cmd.add_argument("--allow-speaker-overlap", nargs="*", default=[])
     evaluate_cmd.set_defaults(func=cmd_evaluate)
@@ -199,7 +202,7 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--out", default="results/demo")
     demo.add_argument("--config", action="append", default=None)
     demo.add_argument("--seed", type=int, default=7)
-    demo.add_argument("--set", nargs="*", default=[])
+    demo.add_argument("--set", nargs="+", action="extend", default=[])
     demo.set_defaults(func=cmd_demo)
 
     predict = sub.add_parser("predict", help="apply a saved fusion model to a score file")

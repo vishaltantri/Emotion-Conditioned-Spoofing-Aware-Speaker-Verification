@@ -55,6 +55,11 @@ def main() -> None:
     ap.add_argument("--b", required=True, help="control arm")
     ap.add_argument("--n-resamples", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=7)
+    ap.add_argument("--emotion", default=None,
+                    help="restrict the comparison to test trials of this ground-truth "
+                         "emotion (used for the held-out-emotion folds, where the "
+                         "sharp question is how the arms behave on the unseen emotion "
+                         "alone)")
     ap.add_argument("--out", type=Path, default=None,
                     help="optional JSON output path")
     args = ap.parse_args()
@@ -81,13 +86,19 @@ def main() -> None:
 
     with open(args.manifest, encoding="utf-8") as fh:
         manifest = {r["trial_id"]: r for r in csv.DictReader(fh)}
+    keep = np.ones(len(trial_ids), dtype=bool)
+    if args.emotion:
+        keep = np.array([manifest[t].get("emotion") == args.emotion for t in trial_ids])
+        if not keep.any():
+            raise SystemExit(f"no test trial has emotion {args.emotion!r}")
+        trial_ids = [t for t, k in zip(trial_ids, keep) if k]
     labels = np.array([manifest[t]["trial_type"] == "target" for t in trial_ids])
     groups = np.array([manifest[t]["claimed_speaker"] for t in trial_ids], dtype=object)
 
     # Keys are positional, not the arm names: the same arm name can legitimately
     # appear in both runs (e.g. an ablation run vs its parent).
-    a = np.asarray(scores_a, dtype=float)
-    b = np.asarray(scores_b, dtype=float)
+    a = np.asarray(scores_a, dtype=float)[keep]
+    b = np.asarray(scores_b, dtype=float)[keep]
     eer_a = compute_eer(a, labels).eer
     eer_b = compute_eer(b, labels).eer
 
@@ -103,6 +114,7 @@ def main() -> None:
         "results": str(args.results),
         "results_b": str(args.results_b) if args.results_b else None,
         "arm_a": args.a, "arm_b": args.b,
+        "emotion_filter": args.emotion,
         "n_test": int(len(labels)),
         "eer_a": eer_a, "eer_b": eer_b,
         "mean_gain": paired["mean_diff"],
@@ -111,8 +123,9 @@ def main() -> None:
         "n_resamples": paired["n_resamples"],
         "note": "positive mean_gain = arm_a has lower SASV-EER than arm_b",
     }
+    scope = f", emotion={args.emotion}" if args.emotion else ""
     print(f"{args.a}: SASV-EER {100 * eer_a:.2f}%  vs  {args.b}: {100 * eer_b:.2f}%  "
-          f"(n={len(labels)})")
+          f"(n={len(labels)}{scope})")
     print(f"paired gain {100 * result['mean_gain']:+.3f} pts "
           f"[{100 * result['ci_lo']:+.3f}, {100 * result['ci_hi']:+.3f}] "
           f"p(not worse)={result['p_b_not_worse']:.3f}")

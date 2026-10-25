@@ -8,19 +8,19 @@ what the result was, and what remains. Measured numbers live in
 root causes, is in [PROGRESS_LOG.md](PROGRESS_LOG.md); the remaining methodological
 gap is recorded in [PROTOCOL.md](PROTOCOL.md) section 6.
 
-Last verified: 2026-10-23, 79 tests passing.
+Last verified: 2026-10-25, 83 tests passing.
 
 ## Status at a glance
 
 | stage | status | evidence |
 |---|---|---|
 | 0 — environment | **done** | CUDA torch `2.14.1+cu130` on the RTX 3050, offline wheels, `.venv` for analysis and `.venv-rm` for audio models |
-| 1 — prior art / novelty gate | **conditionally closed** | four closest papers read, matrix filled, conditional GO recorded; two checklist items still open |
+| 1 — prior art / novelty gate | **closed on the mechanism, one item open** | four closest papers read, matrix filled; held-out-emotion item now done; published-baseline reproduction still open, declared a limitation |
 | 2 — datasets, licences, manifests | **done, with one compliance gap** | 53,900-trial manifest, audit 0 errors / 4 expected warnings; ESD licence never granted |
 | 3 — score producers | **done, one validation gap** | ASV, SER and four countermeasure regimes scored on every trial; no published-baseline reproduction |
 | 4 — pre-register success criteria | **not done** | [PROTOCOL.md](PROTOCOL.md) §6 now records the rules applied and marks the missing pre-registration |
 | 5 — real-data evaluation | **done** | four CM regimes, five arms, grouped and paired bootstrap, per-emotion and per-attack tables |
-| 6 — ablations and depth | **partial** | gate-weight introspection and group breakdowns done; the four planned ablation studies are not |
+| 6 — ablations and depth | **partial, now with the decisive ones** | gate-weight introspection, group breakdowns, SER-confidence ablation and two held-out-emotion folds done; uncertainty-removed overlay and seed repeats still not |
 | 7 — paper writing | **not started** | the course report [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx) is the current write-up; `paper/` and `figures/` are placeholders |
 
 ## Stage 0 — Environment
@@ -45,16 +45,21 @@ GCCE 2023 (sequential emotion-then-speaker gate) — plus the multi-task spoofin
 ASV paper (Zhao et al. 2022) to check whether an integrated model already covers the
 proposal. It does not: it is one network with task heads and no emotion signal.
 
-Still open, and both are verification rather than reading:
+Closed since: the held-out-emotion evaluation (2026-10-25 — `angry` and `neutral`
+excluded from countermeasure training and from the fusion fit; ≤0.03 points change on
+the held-out emotion, every paired CI spanning zero) and the SER-confidence ablation
+(a single SER max-probability scalar reproduces the gated arm's Regime D edge), so the
+mechanism claim is withdrawn rather than pending.
+
+Still open, and it is verification rather than reading:
 
 * reproduction of a strong published baseline under a matched protocol, which would
-  also validate the metric code against reference numbers;
-* a held-out-emotion evaluation, without which "cross-emotion" is a breakdown rather
-  than a generalisation claim.
+  also validate the metric code against reference numbers. For a workshop submission
+  this is declared as a limitation instead of blocking the paper.
 
-The proposed method's row in the matrix now reports measured behaviour (it was
-executed on 53,900 real trials), including the finding that its gate does not vary
-with emotion. No "first" or "novel" wording is permitted anywhere in the project.
+The proposed method's row in the matrix reports measured behaviour (it was executed
+on 53,900 real trials), including the finding that its gate does not vary with
+emotion. No "first" or "novel" wording is permitted anywhere in the project.
 
 ## Stage 2 — Datasets, licences, manifests
 
@@ -153,7 +158,9 @@ Partial. Done: per-emotion and per-attack breakdowns, gate-weight introspection 
 emotion, paired arm-vs-arm contrasts, and the four countermeasure regimes (which are
 themselves a generalisation ablation). Not done: removing the uncertainty features on
 real data, a capacity-matched gate, frozen vs fine-tuned SER, an alternative emotion
-taxonomy, and the held-out-emotion track. The ablation configs that exist
+taxonomy, and a held-out-emotion fold against a failing countermeasure. Done since:
+the SER-confidence ablation (`ablation_ser_confidence.yaml`, Regimes B and D) and the
+`angry`/`neutral` held-out-emotion folds. The ablation configs that exist
 (`ablation_no_emotion_uncertainty.yaml`, `ablation_target_far_threshold.yaml`) have
 only ever run on the synthetic demo.
 
@@ -169,7 +176,7 @@ the real results, with two diagrams.
 | # | item | why it matters | rough cost |
 |---|---|---|---|
 | 1 | Run the two ablation overlays on the 53,900-trial corpus | plan-required ablations; currently synthetic-only | minutes |
-| 2 | Held-out-emotion split (train without one emotion, test on it) | makes "cross-emotion" a real claim instead of a breakdown | half a day plus compute |
+| 2 | ~~Held-out-emotion split~~ — **done 2026-10-25** (`angry`, `neutral`) | closed the "unseen emotion" objection; the null result is itself a finding | done (~1 day incl. two CM retrains) |
 | 3 | Repeat the fusion fits on 2–3 seeds and a second speaker split | no evidence yet that the ordering is stable | minutes per run |
 | 4 | Reproduce a published baseline under a matched protocol | validates metric code; closes the last novelty-gate item | days |
 | 5 | ESD licence form + corpus checksum table | publication/compliance blocker, not technical | owner action |

@@ -15,9 +15,9 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > [docs/REMAINING_WORK_PLAN.md](docs/REMAINING_WORK_PLAN.md) and the roadmap is
 > [docs/IMPLEMENTATION_PLAN.md](docs/IMPLEMENTATION_PLAN.md).
 >
-> Verified so far: 79 tests, the novelty gate conditionally closed (4+1 papers read
-> at recorded depth; published-baseline reproduction and a held-out-emotion test
-> still open), a 53,900-trial real merged manifest (17,900 ESD bona fide +
+> Verified so far: 83 tests, the novelty gate closed on the mechanism and open only
+> for a published-baseline reproduction (4+1 papers read at recorded depth; two
+> held-out-emotion folds run), a 53,900-trial real merged manifest (17,900 ESD bona fide +
 > 36,000 EmoSpoof-TTS clones from StyleTTS2, F5-TTS and CosyVoice, `easv audit`
 > clean with 0 errors and 4 documented warnings), real ASV (ECAPA-TDNN) and SER
 > (wav2vec2-superb-ER)
@@ -39,14 +39,19 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > gain cannot be attributed to emotion conditioning, and with an in-domain CM it
 > is still 0.14 pts worse than plain fusion. With a failing CM the emotion arms
 > gain ~5.5 pts, but SER is confidently wrong on clones (32.8 % accuracy at 0.82
-> confidence), so that gain is most likely a spoof cue. Full tables, CIs and
-> caveats: [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
+> confidence), so that gain is most likely a spoof cue — and replacing the emotion
+> vector with one SER max-probability scalar reproduces the gated arm's whole
+> three-generator edge (**1.49 %** vs 1.54 %, p = 0.76). Excluding an entire emotion
+> from both countermeasure training and the fusion fit leaves that emotion's error
+> rate unchanged to within **0.03 pts**. Three independent measurements therefore
+> agree that the gate is not using emotion. Full tables, CIs and caveats:
+> [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 >
 > **Stage status at a glance**
 >
 > | stage | state |
 > |---|---|
-> | Evaluation core (manifest/audit/fusion/metrics/CLI, 79 tests) | done |
+> | Evaluation core (manifest/audit/fusion/metrics/CLI, 83 tests) | done |
 > | ESD English subset + manifest (17,900 rows) | done |
 > | EmoSpoof-TTS: all three generators (36,000 wavs), manifest | done |
 > | Merged real manifest + audit | done — 53,900 trials, 0 errors |
@@ -64,7 +69,7 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python -m pytest -q                       # 79 tests, ~4 s
+.venv/bin/python -m pytest -q                       # 83 tests, ~4 s
 .venv/bin/easv demo --out results/demo --config configs/demo.yaml
 ```
 
@@ -165,15 +170,16 @@ Implemented and tested:
 * real score producers: ECAPA-TDNN ASV, wav2vec2 SER, pretrained AASIST, in-domain
   log-mel CM with leave-one-generator-out training, and AASIST retrained on
   ASVspoof 2019 LA, plus the corpus fetchers and manifest builders;
-* CLI, synthetic demo, 79 tests.
+* CLI, synthetic demo, 83 tests.
 
 Not implemented, and known to be open:
 
 * WavLM/HuBERT speaker or countermeasure encoders — the self-supervised part of the
   plan is realised only through the wav2vec2 SER front-end;
-* a held-out-emotion evaluation: every emotion condition appears in the training
-  split, so the per-emotion tables are descriptive, not a cross-emotion
-  generalisation test (see PROTOCOL section 6);
+* a held-out-emotion evaluation against a *failing* countermeasure: the two folds
+  that exist (`angry`, `neutral`) were run in the working-CM regime, where the CM
+  itself transfers to the unseen emotion at 0.03 % EER, so they stress the fusion
+  stage only (see PROTOCOL section 6 and REAL_RESULTS);
 * the two ablation overlays (`ablation_no_emotion_uncertainty.yaml`,
   `ablation_target_far_threshold.yaml`) have been exercised on synthetic data only,
   not on the real corpus;

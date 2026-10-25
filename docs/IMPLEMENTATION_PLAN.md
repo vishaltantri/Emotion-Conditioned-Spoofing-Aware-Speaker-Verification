@@ -7,8 +7,9 @@ implemented, what was executed, and what is still missing. Numbers are in
 [PROGRESS_LOG.md](PROGRESS_LOG.md); the stage-by-stage work plan is
 [REMAINING_WORK_PLAN.md](REMAINING_WORK_PLAN.md).
 
-Last verified 2026-10-23: 79 tests passing, four countermeasure regimes evaluated on
-53,900 real trials.
+Last verified 2026-10-25: 83 tests passing, four countermeasure regimes, one
+SER-confidence ablation and two held-out-emotion folds evaluated on 53,900 real
+trials.
 
 ## Phase 1 — Prior-art verification and novelty gate — **conditionally closed**
 
@@ -18,12 +19,16 @@ Done: the four closest papers were read at the depth recorded in
 integrated model without emotion, the matrix is filled, and a conditional GO was
 recorded on 2026-10-21 with the method-distinction paragraph.
 
+Done since: the held-out-emotion evaluation (2026-10-25, folds on `angry` and
+`neutral`; the emotion is excluded from CM training and from the fusion fit, and the
+held-out test trials show ≤0.03 points change with every paired CI spanning zero).
+
 Still open: reproduction of a strong published baseline under a matched protocol
-(which would also validate the metric code against reference numbers) and a
-held-out-emotion evaluation. Until both close, nothing in this repository may be
-described as novel, first, or state of the art. The proposed method's matrix row now
-reports measured behaviour, including the finding that its learned gate does not vary
-with emotion.
+(which would also validate the metric code against reference numbers). Until it
+closes, nothing in this repository may be described as novel, first, or state of the
+art. The proposed method's matrix row reports measured behaviour, including the
+finding that its learned gate does not vary with emotion — and the held-out-emotion
+fold now explains why: there was almost no emotion-specific structure to lose.
 
 ## Phase 2 — Dataset and protocol definition — **done, except licences and pre-registration**
 
@@ -88,9 +93,12 @@ bona-fide acceptance at a dev-selected threshold; grouped and paired bootstrap
 ([compare_arms.py](../scripts/compare_arms.py)); persisted per-trial scores for error
 analysis.
 
-Not done: a held-out-emotion split (every emotion appears in train, so those tables
-are descriptive), a cross-dataset track, repeated seeds, and an alternate speaker
-split. The test split was evaluated once per regime, as required.
+Not done: a held-out-emotion fold against a *failing* countermeasure (the two folds
+that exist, `angry` and `neutral`, run in the working-CM regime and so stress the
+fusion stage only), a cross-dataset track, repeated seeds, and an alternate speaker
+split. The held-out-emotion splits themselves are done: `folds.holdout_emotion` in
+the evaluation config plus `--holdout-emotion` in the CM trainer, with the test split
+always left intact. The test split was evaluated once per regime, as required.
 
 ## Phase 6 — Paper writing — **not started**
 
@@ -119,8 +127,9 @@ submission, and the corpus licences are unresolved. See [paper/README.md](../pap
 
 1. Run the two ablation overlays on the real corpus (uncertainty removed; 1 % FAR
    budget) — the only plan-required ablations still missing.
-2. Build a held-out-emotion split and evaluate it; without it the cross-emotion half
-   of the research question is unanswered.
+2. ~~Build a held-out-emotion split and evaluate it~~ — done 2026-10-25 for `angry`
+   and `neutral` (null result; see [REAL_RESULTS.md](REAL_RESULTS.md)). Optional
+   extension: repeat a fold against the failing AASIST-LA countermeasure.
 3. Repeat the fits across seeds and a second speaker split before describing the arm
    ordering as stable.
 4. Reproduce one published baseline to validate the metric code and close the novelty

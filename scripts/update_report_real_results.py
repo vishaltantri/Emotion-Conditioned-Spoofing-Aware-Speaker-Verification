@@ -3,9 +3,9 @@
 The report was first written when every number came from the synthetic demo. This
 script keeps its real-data section honest as the project moves: it replaces the
 abstract that denies real data exists, refreshes the component table and the
-section introduction, adds the three-generator regime and the ASVspoof-2019 LA
-result once they exist, and rewrites the closing claims so they match the measured
-outcomes. It updates an existing section 4.4 rather than creating one, so the
+section introduction, adds the three-generator regime, the ASVspoof-2019 LA result
+and the held-out-emotion folds once they exist, and rewrites the closing claims so
+they match the measured outcomes. It updates an existing section 4.4 rather than creating one, so the
 document and the script cannot drift into two different versions.
 
 Idempotent: every function checks for its own marker and re-running is safe.
@@ -144,6 +144,51 @@ def add_la_aasist(doc, metrics_path: Path) -> bool:
     return True
 
 
+HELDOUT_EMOTION_MARKER = "Two further folds test the cross-emotion claim directly"
+
+
+def add_heldout_emotion(doc) -> bool:
+    """Add the held-out-emotion folds to section 4.4.
+
+    Placed after the LA paragraph when it exists, otherwise directly before
+    section 4.5, so the two insertions do not fight over the same position.
+    """
+    if any(HELDOUT_EMOTION_MARKER in p.text for p in doc.paragraphs):
+        return False
+    la = next((p for p in doc.paragraphs
+               if p.text.strip().startswith("Finally, the ASVspoof 2019 LA training set")), None)
+    heading = next((p for p in doc.paragraphs
+                    if p.text.strip().startswith("4.5 What has and has not")), None)
+    if la is None and heading is None:
+        raise SystemExit("could not find an anchor for the held-out-emotion paragraph")
+
+    new = doc.add_paragraph()
+    if la is not None:
+        la._p.addnext(new._p)
+    else:
+        heading._p.addprevious(new._p)
+    run = new.add_run(
+        "Two further folds test the cross-emotion claim directly. In each, one emotion (angry, "
+        "then neutral) is removed from every stage that could learn it: the countermeasure's "
+        "training and development-based early stopping, and the fusion fit's train and dev "
+        "splits, while the test split is left intact, so the held-out trials are scored by a "
+        "pipeline that never encountered that emotion. Removing it costs nothing. The "
+        "countermeasure detects the held-out emotion at 0.03 % EER (0.08 % overall), and on "
+        "that emotion's 5,040 test trials the largest change in SASV-EER between fitting with "
+        "and without it is 0.03 points, with every paired bootstrap interval containing zero "
+        "(gated, angry: −0.01 points, interval −0.06 to 0.00; gated, neutral: +0.03, interval "
+        "0.00 to 0.13). The pipeline therefore generalises to an emotion it has never seen. The "
+        "reason is not that the emotion features generalise well but that they carry little "
+        "emotion-specific structure: an arm that genuinely conditioned on emotion would lose "
+        "something when an entire condition is removed, and these lose nothing measurable. "
+        "That is the third independent line of evidence against the mechanism, alongside the "
+        "flat gate weights and the confidence-scalar reproduction.")
+    run.font.name = "Times New Roman"
+    run.font.size = Pt(BODY)
+    new.paragraph_format.space_after = Pt(6)
+    return True
+
+
 def add_crossgenerator(doc) -> None:
     """Append the leave-one-generator-out paragraph once, after the Regime B text."""
     if any(CROSSGEN_MARKER in p.text for p in doc.paragraphs):
@@ -240,9 +285,18 @@ def update_ser_numbers(doc) -> None:
             "corpus, 32.8 % at 0.82 on the full three-generator corpus, against 41.2 % on "
             "genuine speech — so its probability vector implicitly encodes whether the audio is "
             "synthetic. Emotion features act as a substitute spoof detector, which is a confound "
-            "rather than the proposed effect, and it sets the agenda for the next pass: replace "
-            "the emotion features with an explicit confidence scalar and test whether the gain "
-            "survives."))
+            "rather than the proposed effect. That was tested directly: replacing the four-way "
+            "emotion vector with the single maximum predicted probability, while keeping the "
+            "fusion ladder identical, recovers +1.6 of the +5.4 points (95 % CI 0.70-2.74, "
+            "p < 0.001) on this regime, and the full vector remains significantly better than "
+            "that scalar (−3.7 points, CI −7.68 to −0.78). Roughly a third of the apparent "
+            "gain is therefore a "
+            "spoof cue, and the remainder is the per-class structure of an out-of-domain "
+            "emotion output rather than demonstrated emotion semantics. In the three-generator "
+            "regime the same ablation is decisive against the mechanism: the gated arm reaches "
+            "1.49 % with the scalar alone against 1.54 % with the full vector, a difference of "
+            "0.02 points whose interval spans zero (p = 0.76), so its advantage does not "
+            "require emotion information at all."))
         break
 
 
@@ -250,19 +304,22 @@ def update_closing_paragraphs(doc) -> None:
     """Replace the two closing paragraphs that still describe future work only."""
     for p in doc.paragraphs:
         t = p.text.strip()
-        if t.startswith("Future work should close the literature gate"):
+        if t.startswith(("Future work should close the literature gate",
+                         "Future work should close what this study leaves open")):
             _set_text(p, (
                 "Future work should close what this study leaves open: a held-out-emotion "
-                "split, since every emotion condition here appears in training; a "
+                "fold against a failing countermeasure, since the two folds reported here were "
+                "run only where the countermeasure already works; a "
                 "pre-registered decision table, because the success margins were recorded only "
                 "after the test report; the two ablation overlays on real data; repeated seeds "
                 "and a second speaker split; reproduction of a published baseline under a "
                 "matched protocol, which would also validate the metric code against reference "
                 "numbers; and the ASVspoof 2019 evaluation partition, which would give the "
                 "retrained countermeasure a standard benchmark instead of two held-out speakers. "
-                "The ESD research licence also has to be settled before publication. These "
-                "steps will determine whether the gating advantage survives, is limited to the "
-                "cross-generator condition, or is an artefact of capacity and calibration."))
+                "The ESD research licence also has to be settled before publication. The "
+                "evidence gathered so far already points to the third of the original "
+                "alternatives: the gating advantage is limited to the cross-generator corpus and "
+                "is explained by capacity and calibration rather than by emotion conditioning."))
         elif t.startswith("This project implemented and audited a score-level research"):
             _set_text(p, (
                 "This project implemented and audited a score-level research infrastructure for "
@@ -283,10 +340,12 @@ def update_audit_paragraph(doc) -> None:
             continue
         _set_text(p, (
             "The repository was executed in its supplied virtual environment. The full "
-            "automated suite completed successfully: 79 tests passed. The tests cover "
+            "automated suite completed successfully: 83 tests passed. The tests cover "
             "manifest validation, score alignment, metric direction conventions, threshold "
             "separation, fusion serialization, grouped evaluation, command-line behaviour, "
-            "the manifest builders, and the arm-vs-arm comparison sign convention. Passing "
+            "the manifest builders, the arm-vs-arm comparison sign convention, the "
+            "SER-confidence feature mode, and the held-out-emotion fold (that it leaves the "
+            "test split intact and rejects an unknown emotion). Passing "
             "tests are evidence that the implemented functions meet their encoded "
             "expectations; they are not evidence that a biometric system works on unseen "
             "human speech, which is why section 4.4 executes the full pipeline on real audio."))
@@ -318,7 +377,7 @@ def update_appendix(doc) -> None:
         t = p.text.strip()
         if t.startswith("1. .venv/bin/python -m pytest -q"):
             _set_text(p, (
-                "1. .venv/bin/python -m pytest -q  ->  79 tests passed.\n"
+                "1. .venv/bin/python -m pytest -q  ->  83 tests passed.\n"
                 "2. .venv/bin/python -m easv demo --out <temporary directory> --config "
                 "configs/demo.yaml  ->  1,660 synthetic trials and five fitted models "
                 "(pipeline smoke test only).\n"
@@ -335,7 +394,10 @@ def update_appendix(doc) -> None:
                 "results/real/run4_3gen_crossgen  ->  the three-generator tables in 4.4.\n"
                 "6. .venv/bin/python scripts/compare_arms.py --results "
                 "results/real/run4_3gen_crossgen --manifest results/e2e/merged_manifest.csv "
-                "--a emotion_gated --b emotion_interaction  ->  the arm-vs-arm contrast."))
+                "--a emotion_gated --b emotion_interaction  ->  the arm-vs-arm contrast.\n"
+                "7. scripts/train_cm_indomain.py --holdout-emotion <angry|neutral>, then "
+                "easv.cli evaluate with and without --set folds.holdout_emotion=<emotion>, then "
+                "scripts/compare_arms.py --emotion <emotion>  ->  the held-out-emotion folds."))
             break
 
 
@@ -447,7 +509,12 @@ def update_conclusions(doc) -> None:
                 "claim is therefore narrower than the original hypothesis: emotion-conditioned "
                 "architecture choices can improve spoofing-aware fusion on a hard, "
                 "cross-generator corpus, but this data does not show that the improvement comes "
-                "from using emotion. The failure of ASVspoof-2019 countermeasures to transfer to "
+                "from using emotion. The held-out-emotion folds remove the last alternative "
+                "reading: excluding an entire emotion from the countermeasure's training and from "
+                "the fusion fit leaves that emotion's error rate unchanged to within 0.03 points, "
+                "so the pipeline is not relying on memorised emotion identities either, and it "
+                "loses nothing because it was hardly using them. The failure of ASVspoof-2019 "
+                "countermeasures to transfer to "
                 "modern neural clones (50.8 % EER pretrained, 43.8 % retrained in-domain) is arguably "
                 "the most useful finding, because it shows that countermeasure generalisation, not "
                 "fusion architecture, is the binding constraint."))
@@ -479,12 +546,13 @@ def main() -> None:
     update_appendix(doc)
     added = add_three_generator(doc)
     added_la = add_la_aasist(doc, args.la_metrics)
+    added_fold = add_heldout_emotion(doc)
     update_component_table(doc)
     update_conclusions(doc)
     removed = dedupe(doc, CROSSGEN_MARKER)
     doc.save(str(args.docx))
     print(f"updated {args.docx} (three-generator={added}, la-aasist={added_la}, "
-          f"removed-duplicates={removed})")
+          f"held-out-emotion={added_fold}, removed-duplicates={removed})")
 
 
 if __name__ == "__main__":
