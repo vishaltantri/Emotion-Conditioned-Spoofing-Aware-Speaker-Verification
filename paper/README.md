@@ -1,6 +1,16 @@
 # Manuscript
 
-**Status: not started.** The course report
+**Status: workshop draft written (2026-10-25).** [manuscript.md](manuscript.md) is a
+complete draft — abstract through conclusion, three result tables, the three
+mechanism probes, limitations, data/ethics statement and a reference list that still
+needs verifying. It reports the ESD/EmoSpoof-TTS pilot numbers and says so in every
+caption; the journal version re-runs the same pipeline on CREMA-D
+([docs/CORPUS_STRATEGY.md](../docs/CORPUS_STRATEGY.md)) and swaps the tables, not
+the argument. Before submission: verify every citation and DOI, decide whether the
+five figures in [figures/](../figures/README.md) go in as-is, and re-check that no
+sentence credits the gated arm's win to emotion.
+
+The course report
 [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx)
 is the current write-up. It reports the executed real-data results — four
 countermeasure regimes over 53,900 trials, the five-arm fusion ladder, the

@@ -628,3 +628,26 @@ on output path rather than trusted.
 Tests: `tests/test_clone_pipeline.py` gained two cases here (split inheritance with
 duplicate and missing-source accounting, and merge demotion), bringing that file to
 nine. Suite: 97 passing.
+
+## 2026-10-25 — Manuscript draft: the argument, not just the numbers
+
+[paper/manuscript.md](../paper/manuscript.md) is now a complete draft in the
+measurement/negative-result frame the ablations forced. Three results tables carry
+the paper — the ladder across four regimes, the paired contrasts, and the regime
+summary — and the mechanism section is built as three independent probes rather than
+one claim: flat gate weights, the confidence scalar reproducing the gated arm's
+entire advantage, and a free held-out-emotion fold. The limitations section states
+the two things that actually constrain the work (four evaluation speakers and a
+pending corpus licence) instead of burying them, and both are addressed by the
+CREMA-D re-anchoring rather than argued around.
+
+Every number was checked against `results/real/*/results.json` while writing, which
+caught one error worth naming: a first draft said the LA-retrained AASIST scored
+2.11 % "on the LA speakers it was trained on". 2.11 % is the *held-out* LA speaker
+number; the point of including the control is that it is a working detector, so the
+distinction is the whole argument.
+
+Citations are deliberately listed as to-verify. The reference list names the works
+this study actually relies on (SASV 2022, AASIST, ECAPA-TDNN, wav2vec2,
+EmoSpoof-TTS, GEM, the Sensors 2025 style-dependent system, ESD, CREMA-D and the
+three TTS systems); no DOI or page number is asserted until someone checks it.

@@ -195,9 +195,10 @@ Not implemented, and known to be open:
   reference numbers;
 * the ASVspoof 2019 LA evaluation partition (only train was fetched, so the
   retrained CM is validated on two held-out speakers);
-* the manuscript ([paper/README.md](paper/README.md)) — the course report is the
-  current write-up; the figures it will need now exist in
-  [figures/](figures/README.md).
+* the manuscript's submission pass — a full draft exists
+  ([paper/manuscript.md](paper/manuscript.md)), but citations still need verifying,
+  the figures need placing, and the numbers are the pilot corpus's until the
+  CREMA-D re-run replaces them. The course report remains the current write-up.
 
 ### Real-data stage (complete)
 

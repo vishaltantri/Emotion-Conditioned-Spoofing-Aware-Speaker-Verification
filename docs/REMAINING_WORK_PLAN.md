@@ -166,7 +166,9 @@ only ever run on the synthetic demo.
 
 ## Stage 7 — Paper writing and submission
 
-The manuscript text is not started; `paper/` contains the section outline only. `figures/` now holds the
+A full manuscript draft now exists ([paper/manuscript.md](../paper/manuscript.md));
+what remains is the submission pass (verify citations, place the figures, swap in the
+CREMA-D numbers once that corpus runs). `figures/` holds the
 five generated figures ([figures/README.md](../figures/README.md)), produced by
 [scripts/make_figures.py](../scripts/make_figures.py) from stored results rather than
 edited by hand; the manuscript text itself is not yet generated from `results.json`.
