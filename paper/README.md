@@ -1,14 +1,23 @@
 # Manuscript
 
-**Status: workshop draft written (2026-10-25).** [manuscript.md](manuscript.md) is a
-complete draft — abstract through conclusion, three result tables, the three
-mechanism probes, limitations, data/ethics statement and a reference list that still
-needs verifying. It reports the ESD/EmoSpoof-TTS pilot numbers and says so in every
-caption; the journal version re-runs the same pipeline on CREMA-D
+**Status: workshop draft complete (2026-10-25).** [manuscript.md](manuscript.md) runs
+abstract to conclusion: three result tables, the three mechanism probes, the two
+robustness ablations, limitations, data/ethics statement, and a reference list whose
+metadata was checked against publisher, ISCA, ACL Anthology, NeurIPS and Crossref
+records rather than asserted. The five figures in [figures/](../figures/README.md) are
+placed in the text with captions written from what the generator draws. It reports
+the ESD/EmoSpoof-TTS pilot numbers and says so in every caption; the journal version
+re-runs the same pipeline on CREMA-D
 ([docs/CORPUS_STRATEGY.md](../docs/CORPUS_STRATEGY.md)) and swaps the tables, not
-the argument. Before submission: verify every citation and DOI, decide whether the
-five figures in [figures/](../figures/README.md) go in as-is, and re-check that no
-sentence credits the gated arm's win to emotion.
+the argument.
+
+Three corrections came out of the verification pass, and they are worth knowing
+before editing the text: F5-TTS is **ACL 2025**, not ICML; **GEM and EmoSpoof-TTS are
+the same Interspeech 2025 paper**, so "the corpus" and "the closest prior method" are
+one reference (`[Mahapatra25]`), which the related-work section now states; and the
+SASV 2022 challenge exists as both an Interspeech paper and a separate evaluation
+plan. What is left before submission is venue formatting and the CREMA-D numbers, not
+content.
 
 The course report
 [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx)

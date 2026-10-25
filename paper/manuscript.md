@@ -125,23 +125,26 @@ verification and is normally handled by augmentation or by an emotion-independen
 embedding. Two recent lines bring emotion into the decision instead: an
 utterance-style-dependent verification system that fuses an emotional embedding
 with a fixed weight [Sensors25], and GEM, which gates a set of emotion-specialised
-anti-spoofing models [GEM]. GEM is the closest prior work, and the difference is
-structural: it has no speaker branch and therefore no SASV decision; it asks which
-anti-spoofing expert should speak for a given emotion, not how emotion should
-re-weight speaker against countermeasure evidence. Neither work reports the
+anti-spoofing models [Mahapatra25]. GEM is the closest prior work, and the
+difference is structural: it has no speaker branch and therefore no SASV decision;
+it asks which anti-spoofing expert should speak for a given emotion, not how
+emotion should re-weight speaker against countermeasure evidence. Note that GEM and
+the corpus we use in this paper come from that same study [Mahapatra25] — the
+authors released EmoSpoof-TTS along with their gated ensemble — so "the corpus
+paper" and "the closest prior method" are one reference, not two. Neither work reports the
 capacity-matched controls that would separate conditioning from capacity, which is
 what the ladder in §5 supplies.
 
-**Emotional neural clones.** EmoSpoof-TTS [EmoSpoof] released 36,000 clones of ten
-ESD speakers with three open systems and parallel text, which makes a controlled
-cross-generator comparison possible for the first time; its own evaluation is
-anti-spoofing only. We use that corpus, and we inherit its construction recipe for
-the re-anchored journal corpus.
+**Emotional neural clones.** EmoSpoof-TTS [Mahapatra25] released 36,000 clones of
+ten ESD speakers with three open systems and parallel text, which is what makes a
+controlled cross-generator comparison possible at all; its own evaluation is
+anti-spoofing only, on a speaker- and generator-disjoint split. We use that corpus
+and inherit its construction recipe for the re-anchored journal corpus.
 
 ## 3. Corpus and protocol
 
 **Corpora.** Bona fide speech is the English subset of ESD [ESD], speakers
-0011–0020 (17,900 target trials). Spoofed speech is EmoSpoof-TTS [EmoSpoof]: 36,000
+0011–0020 (17,900 target trials). Spoofed speech is EmoSpoof-TTS [Mahapatra25]: 36,000
 clones of those same ten speakers from StyleTTS2 [StyleTTS2], F5-TTS [F5TTS] and
 CosyVoice [CosyVoice], 12,000 per generator, four emotions, parallel text. Emotion
 labels are the corpus ground truth, never a model output.
@@ -241,6 +244,19 @@ angry / neutral / happy / sad; F5-TTS 58.8 / 56.6 / 44.0 / 46.5 %; StyleTTS2
 generator: the same emotion moves acceptance by 22 points in one system and by 3
 points in another.
 
+![Figure 1](../figures/fig3_vulnerability.png)
+
+**Figure 1. Where the pooled 38.8 % comes from.** Left: spoof acceptance per
+generator against the pooled rate. Right: the emotion × generator matrix, which
+separates StyleTTS2 (bottom row) instead of averaging it away.
+
+![Figure 2](../figures/fig5_asv_scores.png)
+
+**Figure 2. ECAPA speaker scores per generator** against the dev-selected
+threshold. The overlap of the F5-TTS and CosyVoice clone distributions with the
+bona-fide one is what makes those two generators dangerous; StyleTTS2 clones sit
+mostly below the threshold.
+
 ### 6.2 Transfer is governed by generator adjacency, not by dataset lineage
 
 Table 2 places the four countermeasure regimes side by side. The official
@@ -293,6 +309,34 @@ D (1.40–1.54 %) and worse than plain fusion in all four in regime A (0.73–0.
 against 0.60 %), so the regime-dependent sign flip is not an artefact of one
 initialisation.
 
+![Figure 3](../figures/fig1_arms_by_regime.png)
+
+**Figure 3. SASV-EER of the five arms with grouped-bootstrap 95 % intervals, one
+panel per countermeasure regime.** The sign flip between regimes is the result: the
+proposed arm is last where the countermeasure works and first where it is weakened.
+
+![Figure 4](../figures/fig4_det_curves.png)
+
+**Figure 4. DET curves for `linear` and `emotion_gated` per regime** (probit axes,
+open circles at the equal-error point). Every crossing reproduces the SASV-EER in
+Table 3 to the second decimal, which is an independent check on the metric code.
+
+Two further ablations test how much of the ladder's behaviour is an artefact of the
+chosen fitting setup. Removing the entropy and confidence features changes no arm by
+more than 0.03 points in either decision regime (regime D gated 1.55 % against
+1.54 %), so the uncertainty encoding is inert here — consistent with the single
+scalar already reproducing the gated arm's edge (§6.4). Replacing the dev-EER
+threshold with a security-budget rule (the most permissive dev threshold whose
+dev false-accept rate stays under 1 %) leaves the arm ordering intact while moving
+the operating point: plain fusion is still best in regime A (1.23 % FRR against
+1.96 % for the gated arm) and the gated arm still best in regime D (6.86 % FRR
+against 10.83 % for plain fusion and 10.81 % for the interaction control). In regime
+A the gated arm falls to fourth place on FRR at the budget (1.96 %, against 1.23 %
+for plain fusion), so the regime A verdict is slightly stronger under this rule than
+at the EER point. The margins are threshold-dependent even though their sign is not,
+which is one more reason to read the regime D win as capacity and calibration
+rather than mechanism.
+
 Where the countermeasure already works, emotion conditioning is unnecessary and
 the proposed arm is slightly worse than plain fusion (regime A: −0.14 points).
 Where the countermeasure fails outright, emotion features help a lot (+5.57) — but
@@ -308,6 +352,14 @@ averaged by ground-truth emotion, span 4.02–4.05 for the speaker branch and
 identical to four decimal places. A mechanism whose whole purpose is per-emotion
 weighting that produces a single global weight is a single global weight with extra
 steps.
+
+![Figure 5](../figures/fig2_gate_weights.png)
+
+**Figure 5. The negative result in one image.** Learned gate weights by ground-truth
+emotion, for the speaker branch (left) and the countermeasure branch (right), one
+line per regime, plotted as percentage deviations from each regime's own mean so
+that four regimes share a scale. The spread in the legend is the total range across
+emotions; no regime orders its weights by emotion.
 
 **Probe 2 — a single scalar replaces the emotion vector.** We refit every arm with
 the four-way posterior replaced by one number: the emotion recogniser's maximum
@@ -417,27 +469,51 @@ is distributed.
 *To be verified before submission (titles, venues, DOIs and page numbers); the
 keys below are the ones cited above.*
 
-* [SASV22] SASV 2022 challenge: spoofing-aware speaker verification, evaluation
-  plan and results.
-* [AASIST] Jung et al., AASIST: audio anti-spoofing using integrated spectro-
-  temporal graph attention networks, ICASSP 2022.
-* [ECAPA] Desplanques et al., ECAPA-TDNN: emphasized channel attention, propagation
-  and aggregation in TDNN based speaker verification, Interspeech 2020.
-* [W2V] Baevski et al., wav2vec 2.0; and the SpeechBrain superb-er emotion
-  recognition checkpoint.
-* [EmoSpoof] EmoSpoof-TTS: a 36,000-utterance emotional neural-clone corpus with
-  three open TTS systems, 2025.
-* [GEM] GEM: gated ensemble of emotion-specialised anti-spoofing models,
-  Interspeech 2025.
-* [Sensors25] Utterance-style-dependent speaker verification using emotional
-  embedding with pretrained models, Sensors 2025.
-* [ESD] Emotional Speech Database (ESD), English subset, research licence.
-* [CREMAD] Cao et al., CREMA-D: crowd-sourced emotional multimodal actors dataset,
-  IEEE Transactions on Affective Computing, 2014.
-* [StyleTTS2] Li et al., StyleTTS 2: towards human-level text-to-speech through
-  style diffusion and adversarial training with large speech language models, 2023.
-* [F5TTS] Chen et al., F5-TTS: a fairytaler that fakes fluent and faithful speech
-  with flow matching, 2024.
-* [CosyVoice] Du et al., CosyVoice: a scalable multilingual zero-shot text-to-speech
-  synthesizer based on supervised semantic tokens, 2024.
+Metadata verified against the publisher or archive record on 2026-10-25 (DOI or
+URL given for each). No entry is cited from memory.
+
+* [SASV22] J.-w. Jung, H. Tak, H.-j. Shim, H.-S. Heo, B.-J. Lee, S.-W. Chung,
+  H.-G. Kang, H.-J. Yu, N. Evans, T. Kinnunen, "SASV 2022: The first spoofing-aware
+  speaker verification challenge," *Interspeech 2022*, pp. 2893–2897.
+  doi:10.21437/Interspeech.2022-11270. Evaluation plan: arXiv:2201.10283.
+* [AASIST] J.-w. Jung, H.-S. Heo, H. Tak, H.-j. Shim, J. S. Chung, B.-J. Lee,
+  H.-J. Yu, N. Evans, "AASIST: audio anti-spoofing using integrated spectro-temporal
+  graph attention networks," *ICASSP 2022*, pp. 2405–2409.
+  doi:10.1109/ICASSP43922.2022.9747766.
+* [ECAPA] B. Desplanques, J. Thienpondt, K. Demuynck, "ECAPA-TDNN: emphasized
+  channel attention, propagation and aggregation in TDNN based speaker
+  verification," *Interspeech 2020*, pp. 3830–3834. doi:10.21437/Interspeech.2020-2650.
+* [W2V] A. Baevski, Y. Zhou, A. Mohamed, M. Auli, "wav2vec 2.0: a framework for
+  self-supervised learning of speech representations," *NeurIPS 33* (2020);
+  arXiv:2006.11477. Emotion labels come from the `superb/wav2vec2-base-superb-er`
+  checkpoint of the SUPERB benchmark (Yang et al., *Interspeech 2021*).
+* [Mahapatra25] A. Mahapatra, I. R. Ulgen, A. R. Naini, C. Busso, B. Sisman, "Can
+  emotion fool anti-spoofing?", *Interspeech 2025*, pp. 5628–5632.
+  doi:10.21437/Interspeech.2025-1234. This single paper introduces both
+  **EmoSpoof-TTS** (the 36,000-clone corpus used here, CC BY 4.0, Zenodo
+  15557842) and **GEM** (the gated ensemble of emotion-specialised anti-spoofing
+  models that is our closest prior method).
+* [Sensors25] L. Pham Hoang, H. Takayama, M. Nishida, S. Tsuge, S. Kuroiwa,
+  "Utterance-style-dependent speaker verification using emotional embedding with
+  pretrained models," *Sensors* 25(17), art. 5284, 2025. doi:10.3390/s25175284.
+* [ESD] K. Zhou, B. Sisman, R. Liu, H. Li, "Emotional voice conversion: theory,
+  databases and ESD," *Speech Communication* 137, 1–18, 2022.
+  doi:10.1016/j.specom.2021.11.006. English subset; the corpus download page asks
+  users to cite the ICASSP 2021 paper (arXiv:2010.14794) and licenses the database
+  "free to use only for research purpose".
+* [CREMAD] H. Cao, D. G. Cooper, M. K. Keutmann, R. C. Gur, A. Nenkova, R. Verma,
+  "CREMA-D: crowd-sourced emotional multimodal actors dataset," *IEEE Transactions
+  on Affective Computing* 5(4), 377–390, 2014. doi:10.1109/TAFFC.2014.2336244.
+  Released under ODbL 1.0 with contents under DbCL 1.0.
+* [StyleTTS2] Y. A. Li, C. Han, V. S. Raghavan, G. Mischler, N. Mesgarani,
+  "StyleTTS 2: towards human-level text-to-speech through style diffusion and
+  adversarial training with large speech language models," *NeurIPS 36* (2023),
+  pp. 19594–19621; arXiv:2306.07691.
+* [F5TTS] Y. Chen, Z. Niu, Z. Ma, K. Deng, C. Wang, J. Zhao, K. Yu, X. Chen,
+  "F5-TTS: a fairytaler that fakes fluent and faithful speech with flow matching,"
+  *ACL 2025 (Long Papers)*, pp. 6255–6271; arXiv:2410.06885.
+* [CosyVoice] Z. Du, Q. Chen, S. Zhang, K. Hu, H. Lu, Y. Yang, H. Hu, S. Zheng,
+  Y. Gu, Z. Ma, Z. Gao, Z. Yan, "CosyVoice: a scalable multilingual zero-shot
+  text-to-speech synthesizer based on supervised semantic tokens,"
+  arXiv:2407.05407, 2024 (preprint; no proceedings version found).
 

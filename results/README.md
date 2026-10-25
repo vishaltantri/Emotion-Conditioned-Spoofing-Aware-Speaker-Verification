@@ -29,6 +29,8 @@ Each evaluation run writes:
 | `real/run5_holdout_{angry,neutral}_off` | held-out-emotion folds, fusion fitted on all five emotions (same CM as the `_on` run) |
 | `real/run5_holdout_{angry,neutral}_on` | held-out-emotion folds, the emotion also excluded from the fusion fit (`--set folds.holdout_emotion=…`); the `off`/`on` pair is the measurement, and the contrast on the held-out emotion's own test trials is produced by `compare_arms.py --emotion` |
 | `real/seed{A,D}_{11,23,37}` | seed repeats of regimes A and D (`--set seed=…`); the gated arm is the only seed-sensitive arm, and it stays best in D / worse than linear in A in every seed |
+| `real/abl_unc_{A,D}` | uncertainty-feature ablation on the real corpus (`configs/ablation_no_emotion_uncertainty.yaml`): removing entropy/confidence changes no arm by more than 0.03 pts |
+| `real/abl_far_{A,D}` | security-budget operating point (`configs/ablation_target_far_threshold.yaml`, dev FAR ≤ 1 %): SASV-EER is threshold-free and unchanged; the test FRR at the budget keeps the same arm ordering |
 | `real/asv_summary.{json,md}` | ASV component summary: SV-EER and spoof acceptance by split, emotion and generator |
 | `e2e/` | real manifests (`merged_manifest.csv`, 53,900 trials), LA manifest, and audit reports |
 

@@ -5,15 +5,18 @@
 # download campaign): ESD English under $D/esd and EmoSpoof-TTS generators under
 # $D/emospoof. Every stage is resumable; re-running skips completed work.
 #
-# Scope: this script builds the in-domain CM arm (CM=indomain) or the
-# LA-pretrained AASIST arm (CM=aasist). It does NOT build the reported headline
-# regime, which trains the CM with one generator held out, combines the scores
-# and evaluates into results/real/run4_3gen_crossgen; nor does it train AASIST on
-# ASVspoof 2019 LA. Both are separate documented commands, listed under
-# "Reproduce" in docs/REAL_RESULTS.md.
+# Scope: three countermeasure arms, which are the three the paper reports:
+#   CM=indomain  log-mel CNN trained on every generator        (Regime A)
+#   CM=aasist    published ASVspoof-2019 AASIST checkpoint     (Regime B)
+#   CM=crossgen  log-mel CNN with StyleTTS2 held out of training *and* of
+#                dev-based early stopping — the headline regime D, which is the
+#                run the manuscript's main table reports.
+#
+# It does not train AASIST on ASVspoof 2019 LA (that is
+# scripts/train_cm_aasist_la.py), and it does not build the CREMA-D corpus.
 #
 # Env overrides: DATA_ROOT (default /home/vct/data/easv), DEVICE (cuda|cpu),
-#                OUT (evaluation output dir), CM (indomain|aasist)
+#                OUT (evaluation output dir), CM (indomain|aasist|crossgen)
 set -euo pipefail
 D="${DATA_ROOT:-/home/vct/data/easv}"
 P="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -23,6 +26,12 @@ DEVICE="${DEVICE:-cuda}"
 CM="${CM:-indomain}"
 EVAL_OUT="${OUT:-$P/results/real/run_$CM}"
 export HF_HOME="$D/hf_cache"
+
+# Validate before the hours of work that follow, not after them.
+case "$CM" in
+  indomain|aasist|crossgen) ;;
+  *) echo "unknown CM=$CM (expected indomain, aasist or crossgen)" >&2; exit 2 ;;
+esac
 
 mkdir -p "$P/results/e2e" "$D/real"
 
@@ -50,15 +59,26 @@ say "4/7 SER scores"
         --out "$D/real/scores_ser_merged.csv" --device "$DEVICE"
 
 say "5/7 countermeasure scores ($CM)"
-if [[ "$CM" == "aasist" ]]; then
-  "$PY" "$P/scripts/producer_cm_aasist.py" --manifest "$MERGED" \
-        --out "$D/real/scores_cm_merged.csv" --aasist-root "$D/aasist" --device "$DEVICE"
-  CM_FILE="$D/real/scores_cm_merged.csv"
-else
-  "$PY" "$P/scripts/train_cm_indomain.py" --manifest "$MERGED" \
-        --out-dir "$D/real/cm_indomain" --device "$DEVICE"
-  CM_FILE="$D/real/cm_indomain/scores_cm_indomain.csv"
-fi
+case "$CM" in
+  aasist)
+    "$PY" "$P/scripts/producer_cm_aasist.py" --manifest "$MERGED" \
+          --out "$D/real/scores_cm_merged.csv" --aasist-root "$D/aasist" --device "$DEVICE"
+    CM_FILE="$D/real/scores_cm_merged.csv"
+    ;;
+  crossgen)
+    # StyleTTS2 is excluded from training and from dev-based early stopping, so
+    # every StyleTTS2 clone it scores at test time is from an unseen generator.
+    "$PY" "$P/scripts/train_cm_indomain.py" --manifest "$MERGED" \
+          --out-dir "$D/real/cm_holdout_styletts2" --holdout-attack styletts2 \
+          --device "$DEVICE"
+    CM_FILE="$D/real/cm_holdout_styletts2/scores_cm_indomain.csv"
+    ;;
+  indomain)
+    "$PY" "$P/scripts/train_cm_indomain.py" --manifest "$MERGED" \
+          --out-dir "$D/real/cm_indomain" --device "$DEVICE"
+    CM_FILE="$D/real/cm_indomain/scores_cm_indomain.csv"
+    ;;
+esac
 
 say "6/7 combine scores"
 "$PY" "$P/scripts/combine_scores.py" --speaker "$D/real/scores_asv_merged.csv" \

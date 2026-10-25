@@ -64,7 +64,7 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > | ASVspoof 2019 LA corpus | done — 25,380 train utterances via HF mirror |
 > | Journal corpus on CREMA-D (ODbL, 91 actors) | scaffolded — manifest builder, clone planner/runner, quality gate and clone-manifest merge are written and tested; awaiting the audio and a TTS command ([docs/CORPUS_STRATEGY.md](docs/CORPUS_STRATEGY.md)) |
 > | AASIST retrained on LA (in-domain) | done — [scripts/train_cm_aasist_la.py](scripts/train_cm_aasist_la.py); 2.11 % EER on held-out LA speakers, 43.8 % on EASV test |
-> | SER-confidence ablation, held-out-emotion folds | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+> | Ablations and stability: SER-confidence, uncertainty features, security-budget threshold, held-out emotions, four seeds | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
 > | Figure set | done — five generated figures in [figures/](figures/), from [scripts/make_figures.py](scripts/make_figures.py) |
 
 ## Quickstart
@@ -72,7 +72,7 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 ```bash
 python3 -m venv .venv
 .venv/bin/python -m pip install -e ".[dev]"
-.venv/bin/python -m pytest -q                       # 97 tests, ~4 s
+.venv/bin/python -m pytest -q                       # 97 tests, ~4 s (no corpus needed)
 .venv/bin/easv demo --out results/demo --config configs/demo.yaml
 ```
 
@@ -157,7 +157,9 @@ easv manifest-template --out data_manifests/example.csv
 | `docs/` | implementation plan, protocol, novelty gate, corpus strategy, progress log, real results, remaining-work plan |
 | `scripts/` | manifest builders (ASVspoof, ESD, CREMA-D + its clones, EmoSpoof), ASV/SER/CM score producers, score combiner, in-domain and LA CM trainers, clone planner/runner and its quality gate, arm-vs-arm comparison, figure generator, corpus fetchers (`hf_fetch.sh`, `extract_hf_corpora.py`), `run_real_pipeline.sh` (end-to-end entry point) |
 | `figures/` | the five generated manuscript figures (`.png` + vector `.pdf`) and their regeneration notes |
-| `paper/` | manuscript workspace — outline only so far |
+| `paper/` | the workshop manuscript ([manuscript.md](paper/manuscript.md)) with its figures placed and references verified |
+| `.github/workflows/tests.yml` | CI: the corpus-free test suite on two Python versions, on every push and pull request |
+| `LICENSE` | MIT for the code, with the corpora's own terms restated below it |
 
 ## What is implemented vs not
 
@@ -187,18 +189,21 @@ Not implemented, and known to be open:
   that exist (`angry`, `neutral`) were run in the working-CM regime, where the CM
   itself transfers to the unseen emotion at 0.03 % EER, so they stress the fusion
   stage only (see PROTOCOL section 6 and REAL_RESULTS);
-* the two ablation overlays (`ablation_no_emotion_uncertainty.yaml`,
-  `ablation_target_far_threshold.yaml`) have been exercised on synthetic data only,
-  not on the real corpus;
+* the two ablation overlays are done on the real corpus (they were synthetic-only
+  until 2026-10-25): removing the uncertainty features changes no arm by more than
+  0.03 points, and the dev-FAR ≤ 1 % operating point keeps the arm ordering
+  (`results/real/abl_unc_{A,D}`, `abl_far_{A,D}`);
 * reproduction of a published baseline under a matched protocol, which is the
   remaining novelty-gate item and would also validate the metric code against
   reference numbers;
 * the ASVspoof 2019 LA evaluation partition (only train was fetched, so the
   retrained CM is validated on two held-out speakers);
-* the manuscript's submission pass — a full draft exists
-  ([paper/manuscript.md](paper/manuscript.md)), but citations still need verifying,
-  the figures need placing, and the numbers are the pilot corpus's until the
-  CREMA-D re-run replaces them. The course report remains the current write-up.
+* the manuscript's submission pass — the draft
+  ([paper/manuscript.md](paper/manuscript.md)) now has its figures placed and its
+  citations checked against publisher/archive records (one correction came out of
+  it: F5-TTS is ACL 2025, not ICML, and GEM is the same Interspeech 2025 paper that
+  released EmoSpoof-TTS). What is still open is the CREMA-D re-run, which replaces
+  the pilot numbers; the course report remains the submission for the course.
 
 ### Real-data stage (complete)
 
@@ -250,7 +255,8 @@ Not implemented, and known to be open:
 
 ```bash
 # corpora must exist: $DATA_ROOT/esd (ESD English) and $DATA_ROOT/emospoof
-DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh
+DATA_ROOT=/home/vct/data/easv CM=crossgen bash scripts/run_real_pipeline.sh   # headline: regime D
+DATA_ROOT=/home/vct/data/easv CM=indomain bash scripts/run_real_pipeline.sh   # regime A
 
 # same, but scored by the bundled LA-trained AASIST checkpoint
 DATA_ROOT=/home/vct/data/easv CM=aasist OUT=results/real/run_oodcm \
@@ -262,12 +268,15 @@ Seven resumable stages: manifests → audit (hard stop on errors) → ASV → SE
 `results/real/<run>/results.md`; measured numbers and caveats are summarised in
 [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md).
 
-The **headline three-generator regime** adds one training step (the countermeasure
-that never sees StyleTTS2), one score combination and one evaluation on top of that
-pipeline; the exact commands are under "Reproduce" in
-[docs/REAL_RESULTS.md](docs/REAL_RESULTS.md#reproduce). Evaluated reports and
-per-trial scores land in `results/real/`, which is git-ignored because it encodes
-corpus paths.
+`CM=crossgen` is the **headline three-generator regime**: the countermeasure is
+trained with StyleTTS2 excluded from training *and* from dev-based early stopping,
+so the StyleTTS2 clones it scores at test time are from an unseen generator. The
+remaining reproductions (seeds, the SER-confidence overlay, the two plan-required
+ablations, the held-out-emotion folds) are the documented command blocks under
+"Reproduce" in [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md#reproduce); each is one
+`easv evaluate` call on score files the pipeline already produced. Evaluated reports
+and per-trial scores land in `results/real/`, which is git-ignored because it
+encodes corpus paths.
 
 ## Research-integrity rules encoded in the code
 

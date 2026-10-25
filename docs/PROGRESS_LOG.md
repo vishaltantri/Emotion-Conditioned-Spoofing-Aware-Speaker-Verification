@@ -651,3 +651,65 @@ Citations are deliberately listed as to-verify. The reference list names the wor
 this study actually relies on (SASV 2022, AASIST, ECAPA-TDNN, wav2vec2,
 EmoSpoof-TTS, GEM, the Sensors 2025 style-dependent system, ESD, CREMA-D and the
 three TTS systems); no DOI or page number is asserted until someone checks it.
+
+## 2026-10-25 — Submission pass: ablations on real data, citations checked, figures placed
+
+Four plan-required items closed in one pass, and two documents had to change
+because of what the checks found.
+
+**Ablations, now on the real corpus.** Both overlays had only ever run on the
+synthetic demo. The uncertainty ablation (`results/real/abl_unc_{A,D}`) removes the
+entropy/confidence features and changes no arm by more than 0.03 points in either
+decision regime — the same story the confidence scalar told from the other side,
+so the uncertainty encoding is inert here and the paper says exactly that instead of
+claiming more. The security-budget ablation (`abl_far_{A,D}`) replaces the dev-EER
+threshold with "most permissive dev threshold whose dev FAR stays under 1 %". SASV-EER
+is threshold-free and cannot move, so the measured quantity is the test FRR at the
+budget: 1.23 % for plain fusion against 1.96 % for the gated arm in regime A, and
+6.86 % against 10.83 % / 10.81 % in regime D. The ordering survives, and the margins
+*widen*, because the arms separate more in the low-false-accept tail than at the
+equal-error point. The first draft of that paragraph claimed the interaction control
+closed to 0.05 points; re-reading the JSON showed 10.81 % against 6.86 %, i.e. a
+3.96-point gap. Corrected in both [REAL_RESULTS.md](REAL_RESULTS.md) and the
+manuscript.
+
+**Seeds.** Four seeds (7, 11, 23, 37) in regimes A and D: the gated arm is best in
+all four in D (1.40–1.54 %) and worse than plain fusion in all four in A
+(0.73–0.79 %). The docs now say this instead of "single seed, stability not
+established", including the caveat that only the gated arm *can* move — the other
+three are fitted by convex procedures, so their constancy is a property of the
+fitter rather than evidence of robustness.
+
+**Citations, verified rather than asserted.** Every reference was checked against a
+publisher, ISCA, ACL Anthology, NeurIPS or Crossref record. Three findings changed
+text:
+
+* F5-TTS is **ACL 2025** (pp. 6255–6271), not ICML.
+* **GEM and EmoSpoof-TTS are the same paper** — Mahapatra et al., Interspeech 2025,
+  pp. 5628–5632, "Can Emotion Fool Anti-spoofing?", which introduces the corpus and
+  proposes the gated ensemble. The manuscript had cited them as two works; it now
+  says so explicitly, because "the corpus paper is also the closest prior method" is
+  a materially different positioning.
+* The SASV 2022 challenge has two documents: the Interspeech 2022 paper
+  (pp. 2893–2897) and a separate evaluation plan (arXiv:2201.10283).
+
+CREMA-D (IEEE TAC 5(4), 377–390) and ESD (Speech Communication 137, 1–18) also
+gained real citations in place of bare names.
+
+**Figures placed.** All five now sit in the text with captions written from what the
+generator draws — checked against `make_figures.py`, which caught one caption that
+described a three-panel figure when `fig2_gate_weights` has two (speaker and
+countermeasure branch, one line per regime).
+
+**Packaging.** `scripts/run_real_pipeline.sh` gained `CM=crossgen`, so the headline
+regime is one command instead of a documented sequence of four, and validates the
+choice before the hours of work rather than after them (testing that path is what
+showed the old script ran four stages before rejecting a typo). `LICENSE` (MIT for
+code, the corpora's terms restated) and a CI workflow (corpus-free suite on 3.10 and
+3.12) close the packaging row. Suite: 97 passing.
+
+**One item closed as a decision rather than a run.** A fusion pass for the
+LA-retrained countermeasure would be a fifth copy of Regime B: that model is at
+chance on these clones (43.8 % test EER), so the ladder collapses to the
+failing-countermeasure case already reported. The per-split CM numbers were the new
+information, and they are already in REAL_RESULTS.

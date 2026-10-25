@@ -20,8 +20,8 @@ Last verified: 2026-10-25, 97 tests passing.
 | 3 — score producers | **done, one validation gap** | ASV, SER and four countermeasure regimes scored on every trial; no published-baseline reproduction |
 | 4 — pre-register success criteria | **not done** | [PROTOCOL.md](PROTOCOL.md) §6 now records the rules applied and marks the missing pre-registration |
 | 5 — real-data evaluation | **done** | four CM regimes, five arms, grouped and paired bootstrap, per-emotion and per-attack tables |
-| 6 — ablations and depth | **partial, now with the decisive ones** | gate-weight introspection, group breakdowns, SER-confidence ablation and two held-out-emotion folds done; uncertainty-removed overlay and seed repeats still not |
-| 7 — paper writing | **figures done, text not started** | the course report [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx) is the current write-up; `paper/` is still an outline, `figures/` holds the five generated figures |
+| 6 — ablations and depth | **done, except the items that need other data** | gate-weight introspection, group breakdowns, SER-confidence ablation, uncertainty-removed overlay, 1 %-FAR operating point and two held-out-emotion folds all measured on the real corpus; seed repeats done for the two decisive regimes. Not done because they need data the project does not have: a fold against a failing CM, a second speaker split, frozen-vs-fine-tuned SER, and a capacity-matched gate |
+| 7 — paper writing | **complete draft; numbers still the pilot's** | [paper/manuscript.md](../paper/manuscript.md) with figures placed and citations verified; the course report [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx) is the submitted write-up; the journal version re-runs the pipeline on CREMA-D |
 
 ## Stage 0 — Environment
 
@@ -149,45 +149,51 @@ Headline outcomes:
   in-domain (43.8 %), while a log-mel CM trained on two adjacent generators detects
   the third at 2.50 %.
 
-Not done in this stage: the two ablation overlays on real data, a second seed, and a
-second speaker split. Each is cheap; see "What remains" below.
+Not done in this stage, after the follow-up runs: a second speaker split (needs
+the CREMA-D re-anchoring) and a held-out-emotion fold against a failing
+countermeasure. The two ablation overlays and the seed repeats were added later — see
+"What remains" below.
 
 ## Stage 6 — Ablations and depth
 
-Partial. Done: per-emotion and per-attack breakdowns, gate-weight introspection by
-emotion, paired arm-vs-arm contrasts, and the four countermeasure regimes (which are
-themselves a generalisation ablation). Not done: removing the uncertainty features on
-real data, a capacity-matched gate, frozen vs fine-tuned SER, an alternative emotion
-taxonomy, and a held-out-emotion fold against a failing countermeasure. Done since:
-the SER-confidence ablation (`ablation_ser_confidence.yaml`, Regimes B and D) and the
-`angry`/`neutral` held-out-emotion folds. The ablation configs that exist
-(`ablation_no_emotion_uncertainty.yaml`, `ablation_target_far_threshold.yaml`) have
-only ever run on the synthetic demo.
+Done: per-emotion and per-attack breakdowns, gate-weight introspection by emotion,
+paired arm-vs-arm contrasts, the four countermeasure regimes (themselves a
+generalisation ablation), the SER-confidence ablation (`ablation_ser_confidence.yaml`,
+regimes B and D), the `angry`/`neutral` held-out-emotion folds, both remaining
+overlays on the real corpus (`ablation_no_emotion_uncertainty.yaml`,
+`ablation_target_far_threshold.yaml`), and four-seed repeats of the two decisive
+regimes.
+
+Not done, and not cheap: a capacity-matched gate that would separate "extra
+parameters" from "conditioning" (the interaction arm is the closest available
+control), frozen vs fine-tuned SER, an alternative emotion taxonomy, and a
+held-out-emotion fold against a failing countermeasure.
 
 ## Stage 7 — Paper writing and submission
 
-A full manuscript draft now exists ([paper/manuscript.md](../paper/manuscript.md));
-what remains is the submission pass (verify citations, place the figures, swap in the
-CREMA-D numbers once that corpus runs). `figures/` holds the
-five generated figures ([figures/README.md](../figures/README.md)), produced by
+A complete manuscript draft exists ([paper/manuscript.md](../paper/manuscript.md)) with
+the five generated figures ([figures/README.md](../figures/README.md)) placed in the
+text and every citation metadata-checked against publisher, ISCA, ACL Anthology,
+NeurIPS and Crossref records. `figures/` is produced by
 [scripts/make_figures.py](../scripts/make_figures.py) from stored results rather than
-edited by hand; the manuscript text itself is not yet generated from `results.json`.
-The course report is the current write-up and does carry the real results, with two
-diagrams.
+edited by hand; the manuscript text itself is still written by hand, so a changed
+number has to be propagated to it deliberately — which is why every table carries its
+source run. What remains is the CREMA-D re-run that replaces the pilot numbers; the
+course report is the submitted write-up.
 
 ## What remains, in priority order
 
 | # | item | why it matters | rough cost |
 |---|---|---|---|
-| 1 | Run the two ablation overlays on the 53,900-trial corpus | plan-required ablations; currently synthetic-only | minutes |
+| 1 | ~~Run the two ablation overlays on the 53,900-trial corpus~~ — **done 2026-10-25** (`results/real/abl_unc_{A,D}`, `abl_far_{A,D}`) | both plan-required ablations are now measured on real data: uncertainty features are inert (≤ 0.03 pts), and the FAR-budget operating point keeps the arm ordering | done (minutes) |
 | 2 | ~~Held-out-emotion split~~ — **done 2026-10-25** (`angry`, `neutral`) | closed the "unseen emotion" objection; the null result is itself a finding | done (~1 day incl. two CM retrains) |
-| 3 | Repeat the fusion fits on 2–3 seeds and a second speaker split | no evidence yet that the ordering is stable | minutes per run |
+| 3 | ~~Repeat the fusion fits on seeds~~ — **done 2026-10-25** (four seeds, regimes A and D). A second speaker split still needs the CREMA-D re-anchoring (91 actors vs 10) | the ordering is stable across seeds; only the gated arm is seed-sensitive, because the other three arms are fitted by convex procedures | done (minutes per run) |
 | 4 | Reproduce a published baseline under a matched protocol | validates metric code; closes the last novelty-gate item | days |
 | 5 | ESD licence form + corpus checksum table | publication/compliance blocker, not technical | owner action |
 | 6 | Longer LA training + the LA eval partition | the retrained CM is validated on 2 speakers, 3 epochs | hours + 7.8 GB |
-| 7 | Score the EASV train split with the LA-retrained CM and run that regime | completes the four-regime table honestly | ~20 min |
+| 7 | **Deliberately not run** (2026-10-25) — a fusion run for the LA-retrained CM | it would be a fifth copy of Regime B: that CM is at chance on these clones (43.8 % test EER, 49.4 % dev), so the ladder collapses to the failing-countermeasure case already reported. The per-split CM numbers that would be new are in [REAL_RESULTS.md](REAL_RESULTS.md) (2.11 % on held-out LA speakers, 49.4 % dev and 43.8 % test on EASV); a fusion run adds no information, and adding one would invite the reader to compare a chance-level arm against a working one | not done, by decision |
 | 8 | Measure per-generator speaker-identity recovery | explains the StyleTTS2 ASV anomaly instead of inferring it | half a day |
-| 9 | Encode the headline regime in `run_real_pipeline.sh`; LICENSE file; CI | reproduction and packaging | half a day |
+| 9 | ~~Encode the headline regime in `run_real_pipeline.sh`; LICENSE file; CI~~ — **done 2026-10-25** | `CM=crossgen` now builds the regime-D countermeasure the paper reports; [LICENSE](../LICENSE) (MIT for code, corpus terms restated); [.github/workflows/tests.yml](../.github/workflows/tests.yml) runs the corpus-free suite on 3.10 and 3.12 | done |
 
 ## Decisions taken (were open at plan time)
 

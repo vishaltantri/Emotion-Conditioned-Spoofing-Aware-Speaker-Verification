@@ -48,6 +48,7 @@ limitations visible from the protocol but not stated.
 
 ### Interspeech 2025 — Can Emotion Fool Anti-spoofing? (GEM)
 - **Authors**: Mahapatra, Ulgen, Naini, Busso, Sisman (JHU, CMU)
+- **Metadata verified 2026-10-25**: Interspeech 2025, pp. 5628–5632, doi:10.21437/Interspeech.2025-1234, arXiv:2505.23962. **This paper releases EmoSpoof-TTS and proposes GEM in the same work**, so "the corpus" and "the closest prior method" are one reference — the manuscript cites both through `[Mahapatra25]` rather than inventing two entries.
 - **URL**: https://www.isca-archive.org/interspeech_2025/mahapatra25_interspeech.html
 - **Features**: RawNet2 end-to-end waveforms; SER logits for gating
 - **Encoders**: RawNet2 (SincNet + residual blocks + GRU); SER (Odyssey 2024 recipe on MSP-Podcast)
@@ -122,14 +123,19 @@ ScienceDirect, arXiv — with date filters and both exact-title and concept sear
 
 ## Starting references (verify metadata before citing)
 
-* Emotion-dependent speaker verification, Sensors 2025 — <https://doi.org/10.3390/s25175284>
-* Can Emotion Fool Anti-spoofing?, Interspeech 2025 — <https://www.isca-archive.org/interspeech_2025/mahapatra25_interspeech.html>
+* Emotion-dependent speaker verification, Sensors 2025 — <https://doi.org/10.3390/s25175284> (verified: *Sensors* 25(17), art. 5284; Pham Hoang, Takayama, Nishida, Tsuge, Kuroiwa)
+* Can Emotion Fool Anti-spoofing?, Interspeech 2025 — <https://www.isca-archive.org/interspeech_2025/mahapatra25_interspeech.html> (verified: pp. 5628–5632, doi:10.21437/Interspeech.2025-1234; releases EmoSpoof-TTS and proposes GEM)
+* CREMA-D — <https://doi.org/10.1109/TAFFC.2014.2336244> (verified: *IEEE TAC* 5(4), 377–390, 2014; ODbL 1.0 + DbCL 1.0)
+* ESD — <https://doi.org/10.1016/j.specom.2021.11.006> (verified: *Speech Communication* 137, 1–18, 2022; download page asks for the ICASSP 2021 paper, arXiv:2010.14794)
+* F5-TTS — <https://aclanthology.org/2025.acl-long.313/> (verified: *ACL 2025 (Long)*, pp. 6255–6271 — **ACL, not ICML**)
+* StyleTTS 2 — <https://proceedings.neurips.cc/paper_files/paper/2023/hash/3eaad2a0b62b5ed7a2e66c2188bb1449-Abstract-Conference.html> (verified: *NeurIPS 36*, pp. 19594–19621; arXiv:2306.07691)
+* SASV 2022 challenge — <https://doi.org/10.21437/Interspeech.2022-11270> (verified: *Interspeech 2022*, pp. 2893–2897; the evaluation plan is arXiv:2201.10283, a different document)
+* AASIST — <https://doi.org/10.1109/ICASSP43922.2022.9747766> (verified: *ICASSP 2022*, pp. 2405–2409)
+* ECAPA-TDNN — <https://doi.org/10.21437/Interspeech.2020-2650> (verified: *Interspeech 2020*, pp. 3830–3834)
+* CosyVoice — <https://arxiv.org/abs/2407.05407> (arXiv only; no proceedings version found)
 * Emotion-based deepfake detection, ICASSP 2022 — <https://doi.org/10.1109/ICASSP43922.2022.9747186>
 * Emotion-conditioned verification, IEEE GCCE 2023 — <https://doi.org/10.1109/GCCE59613.2023.10315461>
-* SASV 2022 challenge — <https://www.isca-archive.org/interspeech_2022/jung22c_interspeech.html>
 * WavLM — <https://arxiv.org/abs/2110.13900>
-* ECAPA-TDNN — <https://arxiv.org/abs/2005.07143>
-* AASIST — <https://arxiv.org/abs/2110.01200>
 * a-DCF (architecture-agnostic DCF) — <https://arxiv.org/html/2403.01355v1>
 * ASVspoof 2021 evaluation plan — <https://arxiv.org/html/2109.00535v1>
 

@@ -354,6 +354,88 @@ for s in 11 23 37; do
 done
 ```
 
+## Plan-required ablations on the real corpus
+
+Both ablation overlays that shipped with the config set had only ever run on the
+synthetic demo. They have now been run on the two decisive regimes, so the two
+claims the plan asked them to check are measured rather than assumed.
+
+### Uncertainty features carry nothing (Regime A and D)
+
+`configs/ablation_no_emotion_uncertainty.yaml` (`training.use_uncertainty: false`)
+removes the entropy/confidence features, keeping the emotion point predictions.
+Runs: `results/real/abl_unc_A`, `results/real/abl_unc_D`; same manifest, ASV and
+CM scores as the parent runs, dev-only thresholds.
+
+| regime | model | full feature set | no uncertainty | change |
+|---|---|---:|---:|---:|
+| A | linear | 0.60 % | 0.60 % | — (arm has no emotion features) |
+| A | additive | 0.66 % | 0.64 % | −0.02 pts |
+| A | gated | 0.73 % | 0.73 % | 0.00 pts |
+| D | linear | 2.27 % | 2.27 % | — |
+| D | additive | 2.51 % | 2.49 % | −0.03 pts |
+| D | gated | 1.54 % | 1.55 % | +0.01 pts |
+
+Every change is smaller than the seed spread of the arm it belongs to (regime D
+gated: sd 0.06 pts across four seeds), so the uncertainty features neither help
+nor hurt. This is consistent with the SER-confidence ablation from the other
+direction: if a single confidence scalar reproduces the gated arm's edge, then the
+richer uncertainty encoding cannot also be doing the work. The finding is narrow —
+it says these particular entropy/confidence features are inert on this corpus, not
+that uncertainty is useless for SASV in general.
+
+### The security-budget operating point preserves the arm ordering
+
+`configs/ablation_target_far_threshold.yaml` (`threshold.policy: target_far`,
+`far_target: 0.01`) picks the most permissive dev threshold whose dev false-accept
+rate stays inside a 1 % budget, instead of the dev EER point. Runs:
+`results/real/abl_far_A`, `results/real/abl_far_D`. SASV-EER is threshold-free and
+is unchanged by construction, so the informative quantity is the **test FRR at the
+budget**, which is what a deployed system would suffer:
+
+| regime | model | threshold | test FAR | test FRR | FRR at dev-EER point |
+|---|---|---:|---:|---:|---:|
+| A | linear | 0.214 | 0.29 % | **1.23 %** | 2.37 % |
+| A | additive | 0.327 | 0.25 % | 2.11 % | 2.69 % |
+| A | interaction | 0.135 | 0.28 % | 1.39 % | 2.87 % |
+| A | gated | 0.820 | 0.24 % | 1.96 % | 2.74 % |
+| D | linear | 0.539 | 0.28 % | 10.83 % | 6.24 % |
+| D | additive | 0.517 | 0.14 % | 12.36 % | 6.57 % |
+| D | interaction | 0.779 | 0.10 % | 10.81 % | 5.84 % |
+| D | gated | 1.558 | 0.17 % | **6.86 %** | 3.97 % |
+
+The ordering survives: plain fusion is the best arm in regime A and the gated arm
+is the best in regime D, under both threshold policies. Both regime D margins widen
+at the budget — 3.97 pts over linear fusion on FRR (against 2.27 pts at the EER
+point) and 3.96 pts over the interaction control (against 0.48 pts). That widening
+is a property of where the threshold lands, not extra evidence for the mechanism:
+the FRR gap grows because the arms' score distributions differ by more in the
+low-false-accept tail than at the equal-error point.
+
+Two honest qualifications. The realised test FAR lands at 0.1–0.3 %, well under the
+1 % budget, because the dev split is harder than test here — the policy is
+conservative rather than tight, so "at a 1 % budget" describes the dev-side rule,
+not the operating point that was actually measured. And in regime A the gated arm
+falls to fourth place on FRR at the budget (1.96 % against 1.23 % for linear, 1.39 %
+for interaction and 2.11 % for additive), a wider gap than the EER-point ordering
+suggested — the regime A verdict "worse than plain fusion" is robust to this
+choice, and slightly stronger.
+
+Reproduce:
+
+```bash
+D=/home/vct/data/easv
+for R in A:scores_combined D:scores_combined_3gen; do
+  REG=${R%%:*}; CM=${R##*:}
+  for ABL in unc:ablation_no_emotion_uncertainty far:ablation_target_far_threshold; do
+    .venv/bin/python -m easv.cli evaluate \
+        --manifest results/e2e/merged_manifest.csv \
+        --scores $D/real/$CM.csv --config configs/real_run.yaml \
+        --config configs/${ABL##*:}.yaml --out results/real/abl_${ABL%%:*}_$REG
+  done
+done
+```
+
 ## What these results do and do not establish
 
 Established (measured, real audio, dev-only thresholds, test reported once):
