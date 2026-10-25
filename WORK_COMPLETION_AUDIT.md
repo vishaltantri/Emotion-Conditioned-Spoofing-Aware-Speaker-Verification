@@ -5,7 +5,7 @@
 > score producers, no countermeasure and 65 tests. Since then the project has
 > executed the full pipeline on real speech (53,900 trials, three EmoSpoof-TTS
 > generators, four countermeasure regimes, a SER-confidence ablation, two
-> held-out-emotion folds, 95 tests) and the report has been updated. Read every
+> held-out-emotion folds, 97 tests) and the report has been updated. Read every
 > "does not include real audio", "synthetic only", "65 tests" and "not
 > demonstrated" statement below as the state on 2026-10-21. Current
 > status: [docs/PROGRESS_LOG.md](docs/PROGRESS_LOG.md) and

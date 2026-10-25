@@ -44,13 +44,19 @@ are only made for attack families present in the evaluation data.
    while fitting or thresholding.
 5. Speaker-disjoint evaluation is required unless a manifest explicitly declares
    an exception via `--allow-speaker-overlap`.
-6. Cross-generator claims require the test generators to be absent from training;
+6. A trial lives in the split the corpus gave the **target rows** for its claimed
+   speaker. Spoof and nontarget rows inherit it, and a generated clone inherits the
+   split of the clip it was cloned from, never a fresh hash — a clone of a test
+   speaker scored in train would fit the countermeasure on its own evaluation data.
+   `merge_manifests.py` enforces the first rule; `build_manifests.py crema-clones`
+   enforces the second.
+7. Cross-generator claims require the test generators to be absent from training;
    `easv audit` reports generator overlap for exactly this check.
-7. Cross-emotion claims require held-out emotion conditions: the emotion must be
+8. Cross-emotion claims require held-out emotion conditions: the emotion must be
    absent from both the countermeasure training and the fusion fit (`folds.holdout_emotion`
    plus `--holdout-emotion`), and the fold must leave the test split intact. The
    audit additionally reports emotions that appear in test but not in train.
-8. Leakage audits (`easv audit`) are part of the protocol, not optional reporting.
+9. Leakage audits (`easv audit`) are part of the protocol, not optional reporting.
 
 ## 4. Metrics
 

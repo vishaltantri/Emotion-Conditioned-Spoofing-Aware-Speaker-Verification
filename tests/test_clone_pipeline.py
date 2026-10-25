@@ -182,3 +182,79 @@ def test_gate_fails_when_the_ser_recognises_the_clones():
                      min_ser_confidence=0.6, max_cm_eer=0.05)
     accuracy = next(c for c in checks if c["criterion"] == "SER accuracy on clones")
     assert accuracy["pass"] is False
+
+
+# ----------------------------------------------------------------------
+# Spoof rows from the generation log
+# ----------------------------------------------------------------------
+def _write_csv(path: Path, rows: list[dict], fields: list[str]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w", newline="", encoding="utf-8") as fh:
+        writer = csv.DictWriter(fh, fieldnames=fields)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _bona(pair: tuple[str, str], split: str) -> dict:
+    stem = f"{pair[0]}_IEO_{pair[1]}_XX"
+    return dict(trial_id=f"crema_{stem}", split=split, speaker_id=pair[0],
+                claimed_speaker=pair[0], trial_type="target", emotion="angry",
+                attack="none", dataset="crema-d", path=f"/corpus/{stem}.wav",
+                source_trial_id="", notes="")
+
+
+def _gen(pair: tuple[str, str], system: str = "styletts2") -> dict:
+    stem = f"{pair[0]}_IEO_{pair[1]}_XX"
+    return dict(system=system, actor=pair[0], emotion="angry", sentence="IEO",
+                text="It is eleven o'clock", ref_path=f"/corpus/{stem}.wav",
+                source_path=f"/corpus/{stem}.wav",
+                out_path=f"/clones/{system}/{pair[0]}/{stem}.wav",
+                trial_id=f"crema_clone_{stem}_{system}")
+
+
+def test_clone_manifest_inherits_the_source_split(tmp_path, capsys):
+    import build_manifests as bm
+
+    bona_csv = tmp_path / "m_crema.csv"
+    _write_csv(bona_csv, [_bona(("1001", "ANG"), "train"),
+                          _bona(("1002", "ANG"), "test")], bm.REQUIRED_HEADER)
+
+    generated = tmp_path / "generated.csv"
+    rows = [_gen(("1001", "ANG")), _gen(("1002", "ANG")),
+            _gen(("1002", "ANG")),                     # duplicate output
+            _gen(("1003", "ANG"))]                     # no source clip
+    _write_csv(generated, rows, gc.PLAN_HEADER)
+
+    out = tmp_path / "m_crema_clones.csv"
+    n = bm.build_manifest_crema_clones(generated, bona_csv, out)
+    captured = capsys.readouterr().out
+    assert n == 2
+    assert "1 duplicate" in captured and "1 with no source clip" in captured
+
+    cloned = {r["speaker_id"]: r for r in csv.DictReader(open(out, encoding="utf-8"))}
+    assert cloned["1001"]["split"] == "train"
+    assert cloned["1002"]["split"] == "test", "a clone must never change split"
+    for row in cloned.values():
+        assert row["trial_type"] == "spoof"
+        assert row["attack"] == "styletts2"
+        assert row["dataset"] == "crema-clones"
+        assert row["claimed_speaker"] == row["speaker_id"]
+        assert row["source_trial_id"].startswith("crema_")
+
+
+def test_merge_keeps_clones_with_their_speaker(tmp_path):
+    import merge_manifests as mm
+    import build_manifests as bm
+
+    rows = [_bona(("1001", "ANG"), "train"), _bona(("1002", "ANG"), "test")]
+    clone = _gen(("1002", "ANG"))
+    rows.append(dict(trial_id=clone["trial_id"], split="train",
+                     speaker_id="1002", claimed_speaker="1002",
+                     trial_type="spoof", emotion="angry", attack="styletts2",
+                     dataset="crema-clones", path=clone["out_path"],
+                     source_trial_id="crema_1002_IEO_ANG_XX", notes=""))
+
+    merged = mm.merge_rows(rows)
+    clone_row = next(r for r in merged if r["trial_type"] == "spoof")
+    assert clone_row["split"] == "test", "spoof rows follow the target split"
+    assert "split demoted" in clone_row["notes"]

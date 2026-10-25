@@ -191,7 +191,20 @@ D=/home/vct/data/crema
     --manifest results/e2e/m_crema.csv --transcripts $D/crema_sentences.csv \
     --system styletts2 --out $D/clones \
     --cmd "python -m styletts2.inference --ref {ref} --text {text} --out {out}"
+# 4) clones -> spoof rows, then one merged manifest
+.venv/bin/python scripts/build_manifests.py crema-clones \
+    --generated $D/clones/styletts2/generated.csv \
+    --bona-fide results/e2e/m_crema.csv --out results/e2e/m_crema_clones.csv
+.venv/bin/python scripts/merge_manifests.py --esd results/e2e/m_crema.csv \
+    --extra results/e2e/m_crema_clones.csv --out results/e2e/m_crema_merged.csv
 ```
+
+A clone always inherits the **source clip's split**, so a clone of a test actor is
+never scored in train; the builder refuses to invent a split and counts any
+generation whose source clip is missing from the bona fide manifest (for example a
+clip the duration filter removed). `merge_manifests.py` now derives the
+authoritative split from target rows rather than from a corpus name, which is what
+lets CREMA-D merge without special-casing.
 
 `crema_sentences.csv` is `sentence,text`, one row per sentence code used in the
 corpus filenames. It is not guessed here on purpose: a wrong transcript would be
@@ -234,9 +247,16 @@ file can be filled from the corpus release in one pass.
    per-generator CM-EER (≤ 5 %). Thresholds are CLI flags; the script exits non-zero
    when a criterion fails, so a bad corpus blocks the pipeline instead of becoming a
    table.
-5. Re-run producers → CM training → fusion → ablations → folds → figures. No core
+5. `scripts/build_manifests.py crema-clones` + `scripts/merge_manifests.py --extra`
+   — **done** (2026-10-25). The generation log becomes spoof rows whose split is
+   inherited from the source clip (never computed independently), duplicates are
+   collapsed on output path, and generations with no source clip are counted and
+   skipped instead of given an invented split. The merge step now derives the
+   authoritative split from **target rows** rather than from the corpus name, so
+   CREMA-D needs no special case; the ASVspoof LA namespace keeps its exemption.
+6. Re-run producers → CM training → fusion → ablations → folds → figures. No core
    code changes expected.
-6. Update the protocol, novelty matrix and results documents with the new numbers;
+7. Update the protocol, novelty matrix and results documents with the new numbers;
    keep the ESD results as the pilot appendix.
 
 ## 9. Risks

@@ -7,16 +7,23 @@ exactly one split, otherwise `easv audit` reports split/leakage findings and
 the fusion semantics get murky.
 
 Policy:
-- For ESD rows the speaker split (4/2/4) is authoritative; EmoSpoof spoof rows
-  inherit the split of their (cloned) claimed speaker; ASVspoof spoof rows keep
-  their LA partition (different corpus, different speaker namespace).
+- The **target rows are authoritative**: whichever split a corpus put a speaker's
+  real recordings in, that is where every trial claiming that speaker belongs
+  (ESD's 4/2/4, CREMA-D's actor-disjoint split, or any future corpus). Spoof and
+  nontarget rows inherit it.
+- ASVspoof LA rows keep their own LA partition and are never demoted: its
+  speakers are a separate namespace.
 - Generator-based split conflicts are demoted: recorded in `notes`, so a
   cross-generator analysis can still be run by regrouping on `attack`.
-- Emotion: ESD/EmoSpoof emotion labels win; ASVspoof rows stay `unknown`.
+- Emotion: ESD/EmoSpoof/CREMA-D emotion labels win; ASVspoof rows stay `unknown`.
 
 Usage:
     python scripts/merge_manifests.py --asvspoof a.csv --esd e.csv \
         --emospoof m.csv --out merged.csv
+
+    # CREMA-D journal corpus: bona fide rows plus generated clones
+    python scripts/merge_manifests.py --esd $D/m_crema.csv \
+        --extra $D/m_crema_clones.csv --out $D/m_crema_merged.csv
 """
 
 from __future__ import annotations
@@ -49,8 +56,10 @@ def merge_rows(rows: list[dict]) -> list[dict]:
     speaker_split: dict[str, str] = {}
     split_conflicts: Counter[str] = Counter()
 
+    # Target rows define where a speaker lives; everything else follows them.
+    # Deriving this from the corpus name instead would tie the merge to ESD.
     for r in rows:
-        if r["dataset"] == "esd_english":
+        if r["trial_type"] == "target":
             speaker_split.setdefault(r["claimed_speaker"], r["split"])
 
     out_rows: list[dict] = []
@@ -99,6 +108,9 @@ def main() -> None:
     ap.add_argument("--asvspoof", type=Path)
     ap.add_argument("--esd", type=Path)
     ap.add_argument("--emospoof", type=Path)
+    ap.add_argument("--extra", type=Path, action="append", default=[],
+                    help="additional manifest(s) to merge, e.g. generated CREMA-D clones; "
+                         "repeatable")
     ap.add_argument("--out", required=True, type=Path)
     args = ap.parse_args()
 
@@ -107,6 +119,10 @@ def main() -> None:
         path = getattr(args, opt)
         if path and path.exists():
             rows.extend(read_rows(path))
+    for path in args.extra:
+        if not path.exists():
+            raise SystemExit(f"--extra manifest not found: {path}")
+        rows.extend(read_rows(path))
     if not rows:
         raise SystemExit("no input manifests found")
     merged = merge_rows(rows)

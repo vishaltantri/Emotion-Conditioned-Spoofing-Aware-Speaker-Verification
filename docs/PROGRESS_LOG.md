@@ -603,3 +603,28 @@ error message names every missing code.
 targets, missing transcript, unusable cell), the resume loop, and the gate in both
 directions — a corpus that reproduces the pilot profile passes, a flat one and one
 whose SER recognises the clones both fail.
+
+## 2026-10-25 — The clone manifest closes the loop: generators → trials
+
+With the planner and gate in place, the missing link was the one that turns
+generated audio into trials. `build_manifests.py crema-clones` reads the generation
+log and emits spoof rows, and `merge_manifests.py --extra` folds them in with the
+bona fide manifest. Two rules make it safe:
+
+* **A clone inherits its source clip's split.** The builder looks the source trial
+  up in the bona fide manifest and refuses to invent a split; a generation whose
+  source clip is absent (for example a clip the ≥2 s filter removed) is counted and
+  skipped. Computing the split independently would have put clones of a test actor
+  into train and fitted the countermeasure on its own evaluation speaker — the
+  quiet version of this bug, since nothing crashes.
+* **The merge derives the authoritative split from target rows**, not from the
+  corpus name. The old code hardcoded `dataset == "esd_english"`, which would have
+  silently ignored CREMA-D; the ASVspoof LA namespace keeps its exemption.
+
+`merge_manifests.py` remains the single entry point, now documented with the
+CREMA-D invocation. The generation log is append-only, so duplicates are collapsed
+on output path rather than trusted.
+
+Tests: `tests/test_clone_pipeline.py` gained two cases here (split inheritance with
+duplicate and missing-source accounting, and merge demotion), bringing that file to
+nine. Suite: 97 passing.
