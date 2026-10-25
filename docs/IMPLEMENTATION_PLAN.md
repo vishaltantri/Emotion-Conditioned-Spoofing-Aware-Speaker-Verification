@@ -95,8 +95,10 @@ analysis.
 
 Not done: a held-out-emotion fold against a *failing* countermeasure (the two folds
 that exist, `angry` and `neutral`, run in the working-CM regime and so stress the
-fusion stage only), a cross-dataset track, repeated seeds, and an alternate speaker
-split. The held-out-emotion splits themselves are done: `folds.holdout_emotion` in
+fusion stage only), a cross-dataset track, and an alternate speaker split — the last
+one needs more speakers than the pilot corpus has, and comes with the CREMA-D
+re-anchoring. Seed repeats are done for the two decisive regimes (four seeds;
+[REAL_RESULTS.md](REAL_RESULTS.md) "Seed stability"). The held-out-emotion splits themselves are done: `folds.holdout_emotion` in
 the evaluation config plus `--holdout-emotion` in the CM trainer, with the test split
 always left intact. The test split was evaluated once per regime, as required.
 

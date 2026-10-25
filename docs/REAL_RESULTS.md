@@ -312,6 +312,48 @@ the unseen emotion almost perfectly (0.03 %). The CM axis is therefore not the o
 under stress here — this experiment tests the fusion stage. On a failing CM
 (Regime B) the fold could bite much harder, and that has not been run.
 
+## Seed stability of the arm ordering
+
+The fits were repeated on four seeds (7, 11, 23, 37) in the two decisive regimes,
+to check that the ordering is a property of the data rather than of one
+initialisation. SASV-EER (%) on the test split:
+
+| regime | seed | linear | additive | interaction | gated |
+|---|---|---:|---:|---:|---:|
+| A (in-domain CM) | 7 | 0.60 | 0.66 | **0.55** | 0.73 |
+| A | 11 | 0.60 | 0.66 | **0.55** | 0.79 |
+| A | 23 | 0.60 | 0.66 | **0.55** | 0.77 |
+| A | 37 | 0.60 | 0.66 | **0.55** | 0.77 |
+| D (StyleTTS2 held out) | 7 | 2.27 | 2.51 | 2.09 | **1.54** |
+| D | 11 | 2.27 | 2.51 | 2.09 | **1.47** |
+| D | 23 | 2.27 | 2.51 | 2.09 | **1.40** |
+| D | 37 | 2.27 | 2.51 | 2.09 | **1.49** |
+
+The conclusion is the same in every seed: the gated arm is the best model in
+regime D and worse than plain fusion in regime A, and the interaction control is
+the best emotion arm wherever the countermeasure works. The gated arm's spread in
+regime D is 1.40–1.54 % (mean 1.48, sd 0.06), so its edge over linear fusion is
+0.73–0.87 points across seeds.
+
+One caveat about what this shows: only the gated arm moves. The other three arms are
+fitted by convex procedures that reach the same optimum from any seed, so their
+constancy is a property of the fitter, not evidence of robustness. The seed test is
+informative only for the non-convex arm — which happens to be the one whose claim is
+under test.
+
+Reproduce:
+
+```bash
+for s in 11 23 37; do
+  .venv/bin/python -m easv.cli evaluate --manifest results/e2e/merged_manifest.csv \
+      --scores /home/vct/data/easv/real/scores_combined_3gen.csv \
+      --config configs/real_run.yaml --set seed=$s --out results/real/seedD_$s
+  .venv/bin/python -m easv.cli evaluate --manifest results/e2e/merged_manifest.csv \
+      --scores /home/vct/data/easv/real/scores_combined.csv \
+      --config configs/real_run.yaml --set seed=$s --out results/real/seedA_$s
+done
+```
+
 ## What these results do and do not establish
 
 Established (measured, real audio, dev-only thresholds, test reported once):

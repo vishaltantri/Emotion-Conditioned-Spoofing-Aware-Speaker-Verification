@@ -288,6 +288,11 @@ speakers; positive = first arm better).**
 | gated vs interaction | D | +0.48 | +0.06 … +0.99 | — |
 | gated vs additive | D | +0.85 | +0.25 … +1.46 | — |
 
+Both contrasts hold across seeds: the gated arm is best in all four seeds in regime
+D (1.40–1.54 %) and worse than plain fusion in all four in regime A (0.73–0.79 %
+against 0.60 %), so the regime-dependent sign flip is not an artefact of one
+initialisation.
+
 Where the countermeasure already works, emotion conditioning is unnecessary and
 the proposed arm is slightly worse than plain fusion (regime A: −0.14 points).
 Where the countermeasure fails outright, emotion features help a lot (+5.57) — but
@@ -370,8 +375,13 @@ out-of-domain signal may be more useful than the emotion labels it replaced.
 * **No published-baseline reproduction under a matched protocol.** AASIST appears
   as a transfer control, not as a reproduced state-of-the-art SASV system, so the
   absolute numbers here are not comparable to challenge results.
-* **Single seed, single speaker split.** Arm ordering is reported as measured; its
-  stability across seeds is not established.
+* **One speaker split.** The fits were repeated on four seeds in the two decisive
+  regimes: the gated arm is best in all four in regime D (1.40–1.54 %) and worse
+  than plain fusion in all four in regime A, so the ordering is not an artefact of
+  one initialisation. Only the gated arm is seed-sensitive, because the other three
+  are fitted by convex procedures. A second speaker split is a property of the
+  corpus, not of the seed — which is the fourth reason the journal version moves to
+  91 actors.
 * **Held-out-emotion folds were run only against a working countermeasure**, so they
   stress the fusion stage, not the countermeasure's emotion generalisation.
 
