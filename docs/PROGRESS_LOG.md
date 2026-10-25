@@ -1,4 +1,4 @@
-# Execution progress log (2026-10-21 → 2026-10-23)
+# Execution progress log (2026-10-21 → 2026-10-25)
 
 This log complements [REMAINING_WORK_PLAN.md](REMAINING_WORK_PLAN.md): it records
 what has actually been executed since the initial evaluation-core commit, what is
@@ -10,7 +10,7 @@ exist so far live in `results/e2e/` and are deliberately uncommitted.
 
 | stage | status |
 |---|---|
-| Evaluation core (manifest/audit/fusion/metrics/CLI, 66 tests) | **done, committed** |
+| Evaluation core (manifest/audit/fusion/metrics/CLI, 97 tests) | **done, committed** |
 | Prior-art novelty gate | **closed (conditional GO)** — [NOVELTY_MATRIX.md](NOVELTY_MATRIX.md) |
 | Course-report deliverable (DOCX, 19 pages, synthetic-only claims) | **done** — [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx), audit record [WORK_COMPLETION_AUDIT.md](../WORK_COMPLETION_AUDIT.md) |
 | Offline wheel stack for `.venv-rm` (torch 2.10+cu13, torchaudio, transformers, speechbrain… **69 wheels**) | **done** — recovery pass finished, offline install ran; import verify mechanism in `scripts/wheels_remaining.sh` |
@@ -400,15 +400,19 @@ Open items, ordered by how much they would change a conclusion:
 6. **No fusion regime under the LA-retrained CM**, because its EASV train-split
    scores were not produced. With a chance-level countermeasure the ladder reduces
    to Regime B, which is reported, but the regime itself is absent from the tables.
-7. **The StyleTTS2 ASV anomaly is unexplained.** Only 5.9 % of its clones are
-   accepted by the speaker front-end against 51.5-59.0 % for the other two
-   generators. Audio properties were checked; per-generator speaker-identity
-   recovery was not measured.
+7. ~~**The StyleTTS2 ASV anomaly is unexplained.**~~ **Closed 2026-10-25**: only
+   60.0 % of its clones identify as the cloned speaker against 91-93 % for the
+   other two generators (mean true-speaker cosine +0.256 vs +0.430/+0.455), so the
+   identity is measurably gone rather than merely below threshold. See
+   [REAL_RESULTS.md](REAL_RESULTS.md) "Why StyleTTS2 is rejected" and
+   `results/real/identity_recovery/`.
 8. **No published-baseline reproduction**, so the metric code is validated by unit
    tests only, not against reference numbers from SASV 2022 or ASVspoof.
-9. **Reproducibility loose ends.** `run_real_pipeline.sh` does not encode the
-   headline holdout regime or the LA training; `results/` is git-ignored; there is
-   no corpus checksum/licence table; the repository has no LICENSE file and no CI.
+9. ~~**Reproducibility loose ends.**~~ **Mostly closed 2026-10-25**: `run_real_pipeline.sh`
+   now encodes the headline regime (`CM=crossgen`), the repository has a LICENSE
+   (MIT for code) and a CI workflow (corpus-free suite, 3.10/3.12); still open:
+   `results/` stays git-ignored by design and there is no corpus checksum/licence
+   table (blocked on the ESD licence).
 
 ### Documentation truth pass (same day, second pass)
 
@@ -713,3 +717,54 @@ LA-retrained countermeasure would be a fifth copy of Regime B: that model is at
 chance on these clones (43.8 % test EER), so the ladder collapses to the
 failing-countermeasure case already reported. The per-split CM numbers were the new
 information, and they are already in REAL_RESULTS.
+
+## 2026-10-25 (evening) — the two measurements that were still open
+
+Two items were listed as remaining rather than done, and both were runnable on
+scores the project already has. Neither needed new data.
+
+**Held-out-emotion folds against a failing countermeasure (Regime B).** The
+`angry`/`neutral` folds had only run in the working-CM regime, where the
+countermeasure transfers to the unseen emotion at 0.03 % EER — so the objection
+"the CM axis was never stressed" stood. The two folds were repeated on the
+LA-pretrained AASIST regime (`results/real/run6_foldB_{angry,neutral}_{off,on}`).
+One design note: that countermeasure was never trained on this corpus, so there is
+no CM training stage to exclude an emotion from; the exclusion applies to the
+fusion fit alone (train 16,760 → 12,920 trials). The `fold off` runs reproduce
+`results/real/run2_oodcm` exactly — same five SASV-EER numbers to every reported
+digit — which is the check that nothing but the fold changed.
+
+Whole-test SASV-EER barely moves (gated 26.10 → 26.25 angry, 25.85 neutral), and on
+the held-out emotion's own 3,840 test trials the largest movement of any arm is
+0.15 points with every paired CI spanning zero. That matters because this is the
+regime where the emotion arms sit ~6.3 points *above* plain fusion: an arm using
+the identity of an emotion would lose something when it disappears from training,
+and none does. The fold result is now a null in both regimes.
+
+**Per-generator speaker-identity recovery (plan item 8).** `scripts/asv_identity_recovery.py`
+re-embeds every test trial and scores it against all ten enrolled centroids instead
+of only the claimed speaker's, which turns the "why is StyleTTS2 accepted at 5.9 %"
+question into a closed-set identification measurement. Enrollment reproduces
+`producer_asv.py` exactly: recomputed claimed scores match `scores_asv_merged.csv`
+to mean |diff| 2.5e-07 (max 5.0e-07, n = 21,560), and the acceptance column
+reproduces 59.0 / 51.5 / 5.9 % to the digit.
+
+| class | true speaker is top-1 | mean rank | mean true-speaker score | accepted |
+|---|---:|---:|---:|---:|
+| bona fide target | 99.1 % | 1.01 | +0.562 | 82.9 % |
+| CosyVoice clone | 92.8 % | 1.14 | +0.455 | 59.0 % |
+| F5-TTS clone | 91.3 % | 1.21 | +0.430 | 51.5 % |
+| StyleTTS2 clone | **60.0 %** | **1.97** | **+0.256** | **5.9 %** |
+
+Two failures separate StyleTTS2: it loses the identity (60.0 % top-1, true speaker
+on average *second*), and even where the identity survives the similarity is too
+weak to clear the threshold (60.0 % nearest but only 5.9 % accepted). The identity
+ordering (99.1 > 92.8 > 91.3 > 60.0) is the acceptance ordering (82.9 > 59.0 > 51.5
+> 5.9), so the anomaly is how far each synthesiser drifts from the enrollment
+centroid — not the operating point or the trial mix. Outputs in
+`results/real/identity_recovery/`.
+
+**Verification.** 97 tests pass; all local links across 70 Markdown files resolve;
+`bash -n` clean on every script; the two new run families are quoted in
+[REAL_RESULTS.md](REAL_RESULTS.md), the manuscript, [PROTOCOL.md](PROTOCOL.md),
+[NOVELTY_MATRIX.md](NOVELTY_MATRIX.md) and the plans.

@@ -98,14 +98,14 @@ bona-fide acceptance at a dev-selected threshold; grouped and paired bootstrap
 ([compare_arms.py](../scripts/compare_arms.py)); persisted per-trial scores for error
 analysis.
 
-Not done: a held-out-emotion fold against a *failing* countermeasure (the two folds
-that exist, `angry` and `neutral`, run in the working-CM regime and so stress the
-fusion stage only), a cross-dataset track, and an alternate speaker split — the last
+Not done: a cross-dataset track, and an alternate speaker split — the last
 one needs more speakers than the pilot corpus has, and comes with the CREMA-D
 re-anchoring. Seed repeats are done for the two decisive regimes (four seeds;
-[REAL_RESULTS.md](REAL_RESULTS.md) "Seed stability"). The held-out-emotion splits themselves are done: `folds.holdout_emotion` in
-the evaluation config plus `--holdout-emotion` in the CM trainer, with the test split
-always left intact. The test split was evaluated once per regime, as required.
+[REAL_RESULTS.md](REAL_RESULTS.md) "Seed stability"). The held-out-emotion folds are done in both regimes — `angry` and `neutral` against the working CM (where they
+stress the fusion stage) and repeated against the failing Regime B CM (fusion-stage
+exclusion only, since that CM was never trained on this corpus; ≤0.15 points
+movement, every CI spanning zero): `folds.holdout_emotion` in the evaluation config
+plus `--holdout-emotion` in the CM trainer, with the test split always left intact. The test split was evaluated once per regime, as required.
 
 ## Phase 6 — Paper writing — **workshop draft complete**
 

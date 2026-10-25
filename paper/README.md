@@ -31,8 +31,9 @@ Manuscript drafting is blocked on two things, not on missing results:
 1. **The novelty gate is closed on the mechanism and open only for a baseline
    reproduction.** The closest work has been read and recorded in
    [docs/NOVELTY_MATRIX.md](../docs/NOVELTY_MATRIX.md). The held-out-emotion
-   evaluation now exists (two folds; excluding an entire emotion from CM training
-   and from the fusion fit costs ≤0.03 points on that emotion) so the
+   evaluation now exists (two folds × two countermeasure regimes; excluding an
+   entire emotion from the fusion fit costs ≤0.03 points with a working CM and
+   ≤0.15 with a failing one) so the
    "never tested on an unseen emotion" objection is answered, but no published
    baseline has been reproduced under a matched protocol. A paper can describe a
    corpus, a protocol and a measured finding, but not a demonstrated advantage of

@@ -47,5 +47,5 @@ marginals or are skipped with a notice, so a clean checkout still runs.
   pipeline and are not research results.
 * Held-out-emotion folds are reported as tables in
   [docs/REAL_RESULTS.md](../docs/REAL_RESULTS.md) rather than as a sixth figure: the
-  finding is a null result (≤0.03 points), and a bar chart of two indistinguishable
-  pairs would overstate it.
+  finding is a null result (≤0.03 points with a working countermeasure, ≤0.15 with
+  a failing one), and a bar chart of indistinguishable pairs would overstate it.

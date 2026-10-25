@@ -31,6 +31,8 @@ Each evaluation run writes:
 | `real/seed{A,D}_{11,23,37}` | seed repeats of regimes A and D (`--set seed=…`); the gated arm is the only seed-sensitive arm, and it stays best in D / worse than linear in A in every seed |
 | `real/abl_unc_{A,D}` | uncertainty-feature ablation on the real corpus (`configs/ablation_no_emotion_uncertainty.yaml`): removing entropy/confidence changes no arm by more than 0.03 pts |
 | `real/abl_far_{A,D}` | security-budget operating point (`configs/ablation_target_far_threshold.yaml`, dev FAR ≤ 1 %): SASV-EER is threshold-free and unchanged; the test FRR at the budget keeps the same arm ordering |
+| `real/run6_foldB_{angry,neutral}_{off,on}` | held-out-emotion folds against the **failing** Regime B countermeasure (fusion-stage exclusion only, since that CM was never trained on this corpus). The `off` runs reproduce `run2_oodcm` exactly; the `on` pair moves ≤0.15 points on the held-out emotion's own 3,840 trials |
+| `real/identity_recovery/` | closed-set speaker-identity recovery (`scripts/asv_identity_recovery.py`): every test trial scored against all ten centroids, `identity_recovery.{json,md}` and `per_trial.csv` (the `embeddings.npz` cache is a resume artefact). Claimed scores replicate `scores_asv_merged.csv` to 2.5e-07 |
 | `real/asv_summary.{json,md}` | ASV component summary: SV-EER and spoof acceptance by split, emotion and generator |
 | `e2e/` | real manifests (`merged_manifest.csv`, 53,900 trials), LA manifest, and audit reports |
 

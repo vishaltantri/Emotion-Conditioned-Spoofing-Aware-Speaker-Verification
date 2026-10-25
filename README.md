@@ -31,7 +31,10 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > countermeasure works: SASV-EER falls from **33.1 % (ASV only) to 0.60 %** on the
 > two-generator corpus. The LA-pretrained AASIST does **not** transfer to these
 > clones (SPF-EER 50.8 %), while a log-mel CM trained on two generators detects
-> the third, unseen one at **2.50 %** EER. On the complete three-generator design
+> the third, unseen one at **2.50 %** EER. The generator split is not a threshold
+> artefact: scoring every trial against all ten centroids, only **60.0 %** of
+> StyleTTS2 clones still identify as the cloned speaker (against 91–93 % for the
+> other two and 99.1 % for genuine speech), so their identity is measurably gone. On the complete three-generator design
 > with that countermeasure the proposed gated arm is the best model
 > (**1.54 %** SASV-EER vs 2.27 % linear), and its edge over the interaction
 > control (+0.48 pts, CI 0.06–0.99) and the capacity control (+0.85 pts) is
@@ -64,7 +67,8 @@ the literature-review design is in [Emotion_Aware_Anti_Spoofing_Speaker_Verifica
 > | ASVspoof 2019 LA corpus | done — 25,380 train utterances via HF mirror |
 > | Journal corpus on CREMA-D (ODbL, 91 actors) | scaffolded — manifest builder, clone planner/runner, quality gate and clone-manifest merge are written and tested; awaiting the audio and a TTS command ([docs/CORPUS_STRATEGY.md](docs/CORPUS_STRATEGY.md)) |
 > | AASIST retrained on LA (in-domain) | done — [scripts/train_cm_aasist_la.py](scripts/train_cm_aasist_la.py); 2.11 % EER on held-out LA speakers, 43.8 % on EASV test |
-> | Ablations and stability: SER-confidence, uncertainty features, security-budget threshold, held-out emotions, four seeds | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+> | Ablations and stability: SER-confidence, uncertainty features, security-budget threshold, held-out emotions (both CM regimes), four seeds | done — [docs/REAL_RESULTS.md](docs/REAL_RESULTS.md) |
+| Per-generator speaker-identity recovery | done — [scripts/asv_identity_recovery.py](scripts/asv_identity_recovery.py): StyleTTS2 clones still identify as the cloned speaker 60.0 % of the time against 91–93 % for the other two generators, so the 5.9 % acceptance is the identity being gone, not a strict threshold |
 > | Figure set | done — five generated figures in [figures/](figures/), from [scripts/make_figures.py](scripts/make_figures.py) |
 
 ## Quickstart
@@ -189,10 +193,10 @@ Not implemented, and known to be open:
 
 * WavLM/HuBERT speaker or countermeasure encoders — the self-supervised part of the
   plan is realised only through the wav2vec2 SER front-end;
-* a held-out-emotion evaluation against a *failing* countermeasure: the two folds
-  that exist (`angry`, `neutral`) were run in the working-CM regime, where the CM
-  itself transfers to the unseen emotion at 0.03 % EER, so they stress the fusion
-  stage only (see PROTOCOL section 6 and REAL_RESULTS);
+* held-out-emotion folds in both countermeasure regimes: `angry` and `neutral`
+  were excluded from the fusion fit against the working CM (≤0.03 points on 5,040
+  held-out trials) and repeated against the failing Regime B CM (≤0.15 points on
+  3,840, every CI spanning zero) — see PROTOCOL section 6 and REAL_RESULTS;
 * reproduction of a published baseline under a matched protocol, which is the
   remaining novelty-gate item and would also validate the metric code against
   reference numbers;

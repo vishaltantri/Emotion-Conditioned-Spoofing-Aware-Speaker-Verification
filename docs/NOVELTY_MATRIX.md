@@ -4,8 +4,9 @@
 read at the depth recorded below and the matrix is filled from those readings;
 metadata-only rows say so. One gate item remains open: reproduction of a strong
 published baseline under a matched protocol. The held-out-emotion evaluation is
-done (two folds, `angry` and `neutral`; excluding an emotion from countermeasure
-training and from the fusion fit costs ≤0.03 points on that emotion), and the
+done (two folds, `angry` and `neutral`, against the working CM and again against
+the failing Regime B CM; excluding an emotion from the fusion fit costs ≤0.03
+points with a working CM and ≤0.15 with a failing one, every CI spanning zero), and the
 proposed method has been executed on real data, so its row reports measured
 behaviour rather than "untested". Until the baseline item closes, no novelty
 claim — and no "first" or "state of the art" wording — is permitted, and the
@@ -185,10 +186,12 @@ ScienceDirect, arXiv — with date filters and both exact-title and concept sear
     scored on its own untouched test trials. The held-out emotion is detected at
     0.03 % CM-EER and SASV-EER moves by at most 0.03 points, so the pipeline
     generalises to an unseen emotion; the reason is that the emotion features carry
-    little emotion-specific structure, not that they generalise well. Remaining: a
-    fold against a failing countermeasure, and `surprise` (bona fide only).
+    little emotion-specific structure, not that they generalise well.
     [PROTOCOL.md](PROTOCOL.md) section 6 and [REAL_RESULTS.md](REAL_RESULTS.md)
-    record both the result and the caveat.
+    record both the result and the caveat. The fold was then repeated against the
+    failing Regime B countermeasure (fusion-stage exclusion only): ≤0.15 points on
+    3,840 held-out trials, every CI spanning zero. Remaining: `surprise` (bona
+    fide only).
 
 ## Method-distinction paragraph (to write after the gate)
 

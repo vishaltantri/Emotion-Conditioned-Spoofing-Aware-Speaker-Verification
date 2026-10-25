@@ -20,7 +20,7 @@ Last verified: 2026-10-25, 97 tests passing.
 | 3 — score producers | **done, one validation gap** | ASV, SER and four countermeasure regimes scored on every trial; no published-baseline reproduction |
 | 4 — pre-register success criteria | **not done** | [PROTOCOL.md](PROTOCOL.md) §6 now records the rules applied and marks the missing pre-registration |
 | 5 — real-data evaluation | **done** | four CM regimes, five arms, grouped and paired bootstrap, per-emotion and per-attack tables |
-| 6 — ablations and depth | **done, except the items that need other data** | gate-weight introspection, group breakdowns, SER-confidence ablation, uncertainty-removed overlay, 1 %-FAR operating point and two held-out-emotion folds all measured on the real corpus; seed repeats done for the two decisive regimes. Not done because they need data the project does not have: a fold against a failing CM, a second speaker split, frozen-vs-fine-tuned SER, and a capacity-matched gate |
+| 6 — ablations and depth | **done, except the items that need other data** | gate-weight introspection, group breakdowns, SER-confidence ablation, uncertainty-removed overlay, 1 %-FAR operating point and four held-out-emotion folds (two emotions × two countermeasure regimes) all measured on the real corpus; seed repeats done for the two decisive regimes. Not done because they need data the project does not have: a second speaker split, frozen-vs-fine-tuned SER, and a capacity-matched gate |
 | 7 — paper writing | **complete draft; numbers still the pilot's** | [paper/manuscript.md](../paper/manuscript.md) with figures placed and citations verified; the course report [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx) is the submitted write-up; the journal version re-runs the pipeline on CREMA-D |
 
 ## Stage 0 — Environment
@@ -150,8 +150,8 @@ Headline outcomes:
   the third at 2.50 %.
 
 Not done in this stage, after the follow-up runs: a second speaker split (needs
-the CREMA-D re-anchoring) and a held-out-emotion fold against a failing
-countermeasure. The two ablation overlays and the seed repeats were added later — see
+the CREMA-D re-anchoring). The two ablation overlays, the seed repeats and the
+held-out-emotion folds against a failing countermeasure were added later — see
 "What remains" below.
 
 ## Stage 6 — Ablations and depth
@@ -166,8 +166,10 @@ regimes.
 
 Not done, and not cheap: a capacity-matched gate that would separate "extra
 parameters" from "conditioning" (the interaction arm is the closest available
-control), frozen vs fine-tuned SER, an alternative emotion taxonomy, and a
-held-out-emotion fold against a failing countermeasure.
+control), frozen vs fine-tuned SER, and an alternative emotion taxonomy. The
+held-out-emotion fold against a failing countermeasure was added on 2026-10-25
+(Regime B, `angry` and `neutral`, ≤0.15 points movement with every CI spanning
+zero), so the fold result now holds in both regimes.
 
 ## Stage 7 — Paper writing and submission
 
@@ -186,13 +188,13 @@ course report is the submitted write-up.
 | # | item | why it matters | rough cost |
 |---|---|---|---|
 | 1 | ~~Run the two ablation overlays on the 53,900-trial corpus~~ — **done 2026-10-25** (`results/real/abl_unc_{A,D}`, `abl_far_{A,D}`) | both plan-required ablations are now measured on real data: uncertainty features are inert (≤ 0.03 pts), and the FAR-budget operating point keeps the arm ordering | done (minutes) |
-| 2 | ~~Held-out-emotion split~~ — **done 2026-10-25** (`angry`, `neutral`) | closed the "unseen emotion" objection; the null result is itself a finding | done (~1 day incl. two CM retrains) |
+| 2 | ~~Held-out-emotion split~~ — **done 2026-10-25** (`angry`, `neutral`), **repeated against the failing Regime B CM the same day** (`run6_foldB_*`) | closed the "unseen emotion" objection in both countermeasure regimes; the null result is itself a finding | done (~1 day incl. two CM retrains; the Regime-B repeat took minutes) |
 | 3 | ~~Repeat the fusion fits on seeds~~ — **done 2026-10-25** (four seeds, regimes A and D). A second speaker split still needs the CREMA-D re-anchoring (91 actors vs 10) | the ordering is stable across seeds; only the gated arm is seed-sensitive, because the other three arms are fitted by convex procedures | done (minutes per run) |
 | 4 | Reproduce a published baseline under a matched protocol | validates metric code; closes the last novelty-gate item | days |
 | 5 | ESD licence form + corpus checksum table | publication/compliance blocker, not technical | owner action |
 | 6 | Longer LA training + the LA eval partition | the retrained CM is validated on 2 speakers, 3 epochs | hours + 7.8 GB |
 | 7 | **Deliberately not run** (2026-10-25) — a fusion run for the LA-retrained CM | it would be a fifth copy of Regime B: that CM is at chance on these clones (43.8 % test EER, 49.4 % dev), so the ladder collapses to the failing-countermeasure case already reported. The per-split CM numbers that would be new are in [REAL_RESULTS.md](REAL_RESULTS.md) (2.11 % on held-out LA speakers, 49.4 % dev and 43.8 % test on EASV); a fusion run adds no information, and adding one would invite the reader to compare a chance-level arm against a working one | not done, by decision |
-| 8 | Measure per-generator speaker-identity recovery | explains the StyleTTS2 ASV anomaly instead of inferring it | half a day |
+| 8 | ~~Measure per-generator speaker-identity recovery~~ — **done 2026-10-25** (`scripts/asv_identity_recovery.py`, `results/real/identity_recovery/`) | explains the StyleTTS2 anomaly instead of inferring it: 60.0 % of its clones still identify as the cloned speaker against 91–93 % for the other two generators, with mean true-speaker cosine +0.256 vs +0.430/+0.455; the identity ordering is the acceptance ordering | done (~4 min on the RTX 3050) |
 | 9 | ~~Encode the headline regime in `run_real_pipeline.sh`; LICENSE file; CI~~ — **done 2026-10-25** | `CM=crossgen` now builds the regime-D countermeasure the paper reports; [LICENSE](../LICENSE) (MIT for code, corpus terms restated); [.github/workflows/tests.yml](../.github/workflows/tests.yml) runs the corpus-free suite on 3.10 and 3.12 | done |
 
 ## Decisions taken (were open at plan time)

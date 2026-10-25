@@ -257,6 +257,19 @@ threshold. The overlap of the F5-TTS and CosyVoice clone distributions with the
 bona-fide one is what makes those two generators dangerous; StyleTTS2 clones sit
 mostly below the threshold.
 
+Table 1's ordering is not an artefact of that threshold. Re-scoring every test
+trial against all ten enrolled centroids rather than only the claimed speaker's —
+a closed-set identification test, whose recomputed claimed scores match the stored
+ones to 2.5e-07 over 21,560 trials — shows that 92.8 % of CosyVoice and 91.3 % of
+F5-TTS clones still identify as the cloned speaker, close to the 99.1 % of genuine
+targets, while only 60.0 % of StyleTTS2 clones do and the true speaker sits on
+average at rank 1.97. Their mean cosine to the true speaker is +0.256 against
++0.430 and +0.455, and +0.562 for genuine speech: 60.0 % of StyleTTS2 clones name
+the right speaker as nearest but only 5.9 % clear the dev threshold. The generator
+ordering of identity recovery (99.1 > 92.8 > 91.3 > 60.0) is the ordering of
+acceptance (82.9 > 59.0 > 51.5 > 5.9), so StyleTTS2 is rejected because its
+synthesis drifts away from the speaker, not because the operating point is strict.
+
 ### 6.2 Transfer is governed by generator adjacency, not by dataset lineage
 
 Table 2 places the four countermeasure regimes side by side. The official
