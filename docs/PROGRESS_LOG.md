@@ -573,3 +573,33 @@ Gaussians one standard deviation apart (EER = Φ(−0.5) = 30.9 %).
 Figures are exported twice (200 dpi `.png`, vector `.pdf`). `matplotlib` is an
 optional extra (`pip install -e '.[figures]'`), so the core test suite still runs
 without it.
+
+## 2026-10-25 — Clone pipeline scaffolded ahead of the CREMA-D audio
+
+The journal corpus needs clones of CREMA-D actors, so the two pieces that decide
+whether that is even worth attempting now exist, and neither needs the corpus to be
+tested:
+
+* `scripts/generate_clones.py` plans the work deterministically (first usable clips
+  per cell become cloning references, the rest become targets; every target
+  synthesised once, because repeating a transcript with a different reference adds
+  files rather than information), refuses to plan when a sentence has no transcript,
+  and runs synthesis through a command template so StyleTTS2, F5-TTS and CosyVoice
+  stay external rather than becoming dependencies of this repository.
+* `scripts/verify_clone_quality.py` is the gate: per-generator spoof acceptance and
+  its spread, SER accuracy and confidence on clones, worst per-generator CM-EER.
+  It exits non-zero when a criterion fails, so a corpus that does not reproduce the
+  pilot phenomenon blocks the pipeline instead of quietly becoming a table.
+
+Two decisions came out of writing them. First, resumption keys on the filesystem
+(a file that exists and is non-empty is done), not on the log, because a file
+deleted after a crash has to be regenerated — the test that caught this was
+written to delete one output and expect exactly one re-run. Second, the planner
+will not invent the twelve CREMA-D prompt sentences: a wrong transcript is cloned
+into every target of that prompt, so the mapping comes from the release and the
+error message names every missing code.
+
+`tests/test_clone_pipeline.py` covers the planner (references never leak into
+targets, missing transcript, unusable cell), the resume loop, and the gate in both
+directions — a corpus that reproduces the pilot profile passes, a flat one and one
+whose SER recognises the clones both fail.

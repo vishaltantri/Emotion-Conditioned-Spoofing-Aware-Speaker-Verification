@@ -175,6 +175,30 @@ Generation must be **resumable and deterministic**: one row per (source clip,
 reference clip, system) in a CSV written as each file lands, so an interrupted run
 loses nothing and the manifest builder can be re-run at any time.
 
+### Running it
+
+```bash
+D=/home/vct/data/crema
+# 1) bona fide manifest (actor-disjoint, ≥2 s clips, same-partition impostors)
+.venv/bin/python scripts/build_manifests.py crema \
+    --crema-root $D/AudioWAV --out results/e2e/m_crema.csv
+# 2) the plan, with no GPU time spent
+.venv/bin/python scripts/generate_clones.py plan \
+    --manifest results/e2e/m_crema.csv --transcripts $D/crema_sentences.csv \
+    --system styletts2 --out $D/clones --dry-run
+# 3) generate (re-run the same command to resume after an interruption)
+.venv/bin/python scripts/generate_clones.py plan \
+    --manifest results/e2e/m_crema.csv --transcripts $D/crema_sentences.csv \
+    --system styletts2 --out $D/clones \
+    --cmd "python -m styletts2.inference --ref {ref} --text {text} --out {out}"
+```
+
+`crema_sentences.csv` is `sentence,text`, one row per sentence code used in the
+corpus filenames. It is not guessed here on purpose: a wrong transcript would be
+cloned into every target of that prompt and would quietly change how natural the
+clones sound. The planner names every missing code in its error message, so the
+file can be filled from the corpus release in one pass.
+
 ## 7. What the journal still needs beyond the corpus
 
 1. **A reproduced published countermeasure under a matched protocol.** This is the
@@ -195,12 +219,21 @@ loses nothing and the manifest builder can be re-run at any time.
    actor-disjoint split and same-partition impostors; covered by three tests in
    `tests/test_manifest_builders.py`. It runs on a fixture today and will run on
    the corpus the moment the audio is on disk.
-3. `scripts/generate_clones.py` — per-system driver, resumable, writing the wav
-   tree plus the generation CSV.
-4. `scripts/verify_clone_quality.py` — **the gate**: before any fusion time is
-   spent, check that the phenomenon reproduces (per-generator ASV acceptance,
-   SER accuracy/confidence on clones, CM-EER). If the clones are unusable, stop
-   here and fix the generator rather than the analysis.
+3. `scripts/generate_clones.py` — **done** (2026-10-25), pure Python, no TTS import.
+   It plans deterministically (first clips in sorted order per cell become the
+   cloning references, the rest become targets), refuses to run when a sentence has
+   no transcript, skips references as targets, and resumes from whatever is on
+   disk. Synthesis goes through a command template
+   (`--cmd "… --ref {ref} --text {text} --out {out}"`) because the three systems
+   disagree about flags and none of them should become a hard dependency of this
+   repository. `--dry-run` writes the plan and the GPU-hour estimate.
+4. `scripts/verify_clone_quality.py` — **done** (2026-10-25). The gate reads the
+   score files that already exist and checks three things before any fusion time is
+   spent: the spread in per-generator spoof acceptance (≥ 10 points — the pilot's was
+   53), SER accuracy on clones (≤ 50 %) with mean confidence (≥ 0.60), and the worst
+   per-generator CM-EER (≤ 5 %). Thresholds are CLI flags; the script exits non-zero
+   when a criterion fails, so a bad corpus blocks the pipeline instead of becoming a
+   table.
 5. Re-run producers → CM training → fusion → ablations → folds → figures. No core
    code changes expected.
 6. Update the protocol, novelty matrix and results documents with the new numbers;
