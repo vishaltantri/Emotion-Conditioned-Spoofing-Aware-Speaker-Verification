@@ -427,7 +427,7 @@ out-of-domain signal may be more useful than the emotion labels it replaced.
 * **No published-baseline reproduction under a matched protocol.** AASIST appears
   as a transfer control, not as a reproduced state-of-the-art SASV system, so the
   absolute numbers here are not comparable to challenge results.
-* **One speaker split.** The fits were repeated on four seeds in the two decisive
+* **One speaker split, four seeds.** The fits were repeated on four seeds in the two decisive
   regimes: the gated arm is best in all four in regime D (1.40–1.54 %) and worse
   than plain fusion in all four in regime A, so the ordering is not an artefact of
   one initialisation. Only the gated arm is seed-sensitive, because the other three
@@ -466,11 +466,9 @@ is distributed.
 
 ## References
 
-*To be verified before submission (titles, venues, DOIs and page numbers); the
-keys below are the ones cited above.*
-
-Metadata verified against the publisher or archive record on 2026-10-25 (DOI or
-URL given for each). No entry is cited from memory.
+Metadata verified against the publisher or archive record on 2026-10-25 (DOI given
+for each). No entry is cited from memory; where a work exists in two forms (the SASV
+2022 challenge paper and its evaluation plan) both are named.
 
 * [SASV22] J.-w. Jung, H. Tak, H.-j. Shim, H.-S. Heo, B.-J. Lee, S.-W. Chung,
   H.-G. Kang, H.-J. Yu, N. Evans, T. Kinnunen, "SASV 2022: The first spoofing-aware
