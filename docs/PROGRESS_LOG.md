@@ -10,7 +10,7 @@ exist so far live in `results/e2e/` and are deliberately uncommitted.
 
 | stage | status |
 |---|---|
-| Evaluation core (manifest/audit/fusion/metrics/CLI, 97 tests) | **done, committed** |
+| Evaluation core (manifest/audit/fusion/metrics/CLI, 99 tests) | **done, committed** |
 | Prior-art novelty gate | **closed (conditional GO)** — [NOVELTY_MATRIX.md](NOVELTY_MATRIX.md) |
 | Course-report deliverable (DOCX, 19 pages, synthetic-only claims) | **done** — [Course_Project_Report_EASV_Audited.docx](../Course_Project_Report_EASV_Audited.docx), audit record [WORK_COMPLETION_AUDIT.md](../WORK_COMPLETION_AUDIT.md) |
 | Offline wheel stack for `.venv-rm` (torch 2.10+cu13, torchaudio, transformers, speechbrain… **69 wheels**) | **done** — recovery pass finished, offline install ran; import verify mechanism in `scripts/wheels_remaining.sh` |
@@ -768,3 +768,59 @@ centroid — not the operating point or the trial mix. Outputs in
 `bash -n` clean on every script; the two new run families are quoted in
 [REAL_RESULTS.md](REAL_RESULTS.md), the manuscript, [PROTOCOL.md](PROTOCOL.md),
 [NOVELTY_MATRIX.md](NOVELTY_MATRIX.md) and the plans.
+
+## 2026-10-26 — The CREMA-D corpus path meets real audio
+
+The journal corpus had a complete code path that had never touched a real file: the
+manifest builder, clone planner, quality gate and clone-merge were tested only
+against fixtures. This pass acquired the corpus and ran the sequence.
+
+**Acquisition.** The release stores `AudioWAV/` behind Git LFS. `git lfs pull` stalled
+without fetching a single object (the batch endpoint never answered) and a full clone
+is 7.55 GB because it carries video. `scripts/fetch_crema.sh` fetches instead from
+`media.githubusercontent.com/media/<owner>/<repo>/<ref>/<path>`: no LFS client, no
+authentication, no video, resumable, with a 16 kHz header check before each file is
+moved into place. Result: **7,442 wavs, 5.26 h of audio, 0 unusable, 592 MB**. The
+corpus is short: 1.27–5.00 s, median 2.50 s, and only 1,252 clips reach 3 s.
+`data_manifests/crema_sentences.csv` was filled from the release README — the
+release's acronyms are not the obvious ones (`ITH`, `IWL`, `MTI`), which is why the
+planner refuses to guess transcripts.
+
+**Manifest, first real run.** `build_manifests.py crema` produced **10,205 rows**
+(6,565 target + 3,640 nontarget) over **91 actors split 61/15/15**, 877 clips dropped
+by the 2 s filter. Checks: no speaker appears in two splits, and every nontarget's
+source clip sits in the claimed speaker's split. `easv audit` reports no split
+findings; its three errors are "missing spoof trials", which is the correct answer
+before any clone exists.
+
+**The planner did not survive contact.** Its first run aborted on
+`cell 1001/disgust: no clip reaches 3 s` — with a 3 s reference rule and a corpus whose
+median clip is 2.5 s, that is 181 of 546 cells, and the abort was total. Dropping
+those cells instead would have removed a whole emotion for particular actors, which
+is the axis the study analyses. Fixed: `min_ref_seconds` is now a preference, a cell
+without one falls back to its **longest** clip and is counted in the returned report;
+`--min-ref-floor` (default 2 s) is the hard floor below which a cell is skipped and
+listed, and `--strict-refs` restores the old all-or-nothing abort. Plan on the real
+manifest: **5,197 generations per system over all 546 cells**, 181 cells on the
+fallback with a shortest reference of **2.17 s**, 10.8 GPU-hours for three systems.
+Verified independently: every sub-3 s reference is that cell's longest clip, no
+reference is also a synthesis target, and there are no duplicate ids or output paths.
+
+**Downstream path exercised without GPU time.** The three plans went through
+`build_manifests.py crema-clones` → `merge_manifests.py --extra` → `easv audit`:
+25,796 trials, test split 1,109 target + 600 nontarget + 2,625 spoof, **0 errors** and
+only the expected `generator_overlap` warnings. `verify_clone_quality.py` ran against
+that merged manifest and rendered its tables, and correctly refuses to report numbers
+without score files. Those artifacts were scratch (the clone rows pointed at files
+that did not exist) and were deleted.
+
+**Error handling.** The real runs surfaced three bare tracebacks on ordinary mistakes
+— missing transcript CSV, missing manifest, wrong `--crema-root` — plus a raw
+`FileNotFoundError` from the gate when its score file did not exist yet, which is the
+normal state at that checkpoint. All four now name the missing input and the command
+or file that produces it.
+
+**Verification.** 99 tests pass (the planner tests moved to the `(rows, report)`
+return and gained three cases: the fallback, the hard floor, and `--strict-refs`).
+Full fetch re-verified: 7,442 wavs, 0 unusable. Nothing was synthesised, so no
+CREMA-D number exists and no published result changed.

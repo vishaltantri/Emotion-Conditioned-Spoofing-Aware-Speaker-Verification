@@ -61,20 +61,21 @@ def test_plan_keeps_references_out_of_the_targets(crema_manifest, tmp_path):
     clips = gc.read_crema_targets(crema_manifest)
     transcripts = {"IEO": "It is eleven o'clock", "TAI": "That is exactly what happened",
                    "IOM": "I'm on my way to the meeting"}
-    rows = gc.plan_generation(clips, transcripts, system="styletts2",
-                              out_root=tmp_path / "clones", refs_per_cell=1,
-                              targets_per_cell=10)
+    rows, report = gc.plan_generation(clips, transcripts, system="styletts2",
+                                      out_root=tmp_path / "clones", refs_per_cell=1,
+                                      targets_per_cell=10)
 
     assert rows, "plan must not be empty"
+    assert report["cells"] == 4 and not report["skipped_cells"]
     refs = {r["ref_path"] for r in rows}
     sources = {r["source_path"] for r in rows}
     assert not (refs & sources), "a cloning reference must never be a synthesis target"
     assert {r["system"] for r in rows} == {"styletts2"}
     assert all(r["out_path"].endswith(".wav") for r in rows)
     # Deterministic: the same corpus must plan identically twice.
-    again = gc.plan_generation(clips, transcripts, system="styletts2",
-                               out_root=tmp_path / "clones", refs_per_cell=1,
-                               targets_per_cell=10)
+    again, _ = gc.plan_generation(clips, transcripts, system="styletts2",
+                                  out_root=tmp_path / "clones", refs_per_cell=1,
+                                  targets_per_cell=10)
     assert [r["trial_id"] for r in rows] == [r["trial_id"] for r in again]
 
 
@@ -86,21 +87,48 @@ def test_plan_requires_a_transcript_for_every_sentence(crema_manifest, tmp_path)
     assert "IOM" in str(excinfo.value) or "TAI" in str(excinfo.value)
 
 
-def test_plan_refuses_a_cell_without_a_usable_reference(crema_manifest, tmp_path):
+def test_plan_falls_back_to_the_longest_clip_in_a_short_cell(crema_manifest, tmp_path):
+    """CREMA-D's median clip is 2.5 s, so the 3 s preference must not be fatal."""
+    clips = gc.read_crema_targets(crema_manifest)
+    transcripts = {"IEO": "a", "TAI": "b", "IOM": "c"}
+    rows, report = gc.plan_generation(clips, transcripts, system="styletts2",
+                                      out_root=tmp_path / "clones",
+                                      min_ref_seconds=10.0, min_ref_floor=2.0)
+    assert len(report["fallback_cells"]) == report["cells"] == 4
+    assert report["min_ref_used"] == pytest.approx(4.0), "the 4 s clip is the longest"
+    assert rows, "the fallback must still produce a plan"
+    # Every row clones from a clip that actually exists, and the reference is not
+    # itself a synthesis target.
+    assert all(Path(r["ref_path"]).name.endswith("_XX.wav") for r in rows)
+    assert not ({r["ref_path"] for r in rows} & {r["source_path"] for r in rows})
+
+
+def test_plan_skips_cells_below_the_hard_floor(crema_manifest, tmp_path):
+    clips = gc.read_crema_targets(crema_manifest)
+    transcripts = {"IEO": "a", "TAI": "b", "IOM": "c"}
+    rows, report = gc.plan_generation(clips, transcripts, system="styletts2",
+                                      out_root=tmp_path / "clones",
+                                      min_ref_seconds=10.0, min_ref_floor=10.0)
+    assert rows == []
+    assert len(report["skipped_cells"]) == report["cells"] == 4
+
+
+def test_plan_strict_refs_refuses_to_fall_back(crema_manifest, tmp_path):
     clips = gc.read_crema_targets(crema_manifest)
     transcripts = {"IEO": "a", "TAI": "b", "IOM": "c"}
     with pytest.raises(SystemExit) as excinfo:
         gc.plan_generation(clips, transcripts, system="styletts2",
-                           out_root=tmp_path / "clones", min_ref_seconds=10.0)
+                           out_root=tmp_path / "clones",
+                           min_ref_seconds=10.0, strict_refs=True)
     assert "nothing to clone from" in str(excinfo.value)
 
 
 def test_run_resumes_instead_of_regenerating(crema_manifest, tmp_path):
     clips = gc.read_crema_targets(crema_manifest)
     transcripts = {"IEO": "a", "TAI": "b", "IOM": "c"}
-    rows = gc.plan_generation(clips, transcripts, system="cosyvoice",
-                              out_root=tmp_path / "clones", refs_per_cell=1,
-                              targets_per_cell=2)
+    rows, _ = gc.plan_generation(clips, transcripts, system="cosyvoice",
+                                 out_root=tmp_path / "clones", refs_per_cell=1,
+                                 targets_per_cell=2)
     done = tmp_path / "clones" / "cosyvoice" / "generated.csv"
     calls: list[str] = []
 

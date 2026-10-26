@@ -230,6 +230,22 @@ def main() -> None:
                     help="report but exit 0 even when a criterion fails")
     args = ap.parse_args()
 
+    # This gate is run at a checkpoint, and the most likely first run has no score
+    # files yet. Say which one is missing and what produces it instead of letting a
+    # FileNotFoundError traceback end the run.
+    hints = {
+        "manifest": (args.manifest,
+                     "build it with 'build_manifests.py crema', then merge the "
+                     "clone rows with 'merge_manifests.py --extra'"),
+        "combined score file": (args.scores,
+                                "produce ASV/SER/CM scores with producer_asv.py, "
+                                "producer_ser.py and producer_cm.py, then join them "
+                                "with combine_scores.py"),
+    }
+    for what, (path, hint) in hints.items():
+        if not path.exists():
+            raise SystemExit(f"{what} not found: {path}\n  -> {hint}")
+
     rows = load_rows(args.manifest, args.scores)
     if args.threshold is None:
         threshold, dev_eer = dev_threshold(rows)

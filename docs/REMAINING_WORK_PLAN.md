@@ -8,7 +8,7 @@ what the result was, and what remains. Measured numbers live in
 root causes, is in [PROGRESS_LOG.md](PROGRESS_LOG.md); the remaining methodological
 gap is recorded in [PROTOCOL.md](PROTOCOL.md) section 6.
 
-Last verified: 2026-10-25, 97 tests passing.
+Last verified: 2026-10-26, 99 tests passing.
 
 ## Status at a glance
 
@@ -180,8 +180,9 @@ NeurIPS and Crossref records. `figures/` is produced by
 [scripts/make_figures.py](../scripts/make_figures.py) from stored results rather than
 edited by hand; the manuscript text itself is still written by hand, so a changed
 number has to be propagated to it deliberately — which is why every table carries its
-source run. What remains is the CREMA-D re-run that replaces the pilot numbers; the
-course report is the submitted write-up.
+source run. What remains is the CREMA-D re-run that replaces the pilot numbers — as
+of 2026-10-26 its audio and bona fide manifest exist and its clone plan is costed,
+but no clone has been synthesised; the course report is the submitted write-up.
 
 ## What remains, in priority order
 

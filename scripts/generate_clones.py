@@ -10,7 +10,10 @@ Design decisions that matter:
 
 * **Deterministic planning.** Per (actor, emotion) cell the first clips in sorted
   order become the cloning references (they must be long enough to clone from) and
-  the rest become synthesis targets. No sampling, no seeds to remember.
+  the rest become synthesis targets. No sampling, no seeds to remember. A cell with
+  no clip at the preferred reference length falls back to its longest clip and says
+  so, because CREMA-D is a short-clip corpus (median 2.5 s) and dropping such cells
+  would remove particular emotions for particular actors.
 * **No duplicated text.** Each target clip is synthesised once per system. Adding
   more files by repeating the same transcript with different references inflates
   the corpus without adding information; the speaker count is what carries the
@@ -118,12 +121,32 @@ def plan_generation(clips: list[dict], transcripts: dict[str, str], *,
                     system: str, out_root: Path,
                     refs_per_cell: int = 2,
                     targets_per_cell: int = 10,
-                    min_ref_seconds: float = 3.0) -> list[dict]:
+                    min_ref_seconds: float = 3.0,
+                    min_ref_floor: float = 2.0,
+                    strict_refs: bool = False) -> tuple[list[dict], dict]:
     """Decide references and synthesis targets cell by cell.
 
-    One row per generation, sorted deterministically. Raises when a cell has no
-    usable reference or when a sentence has no transcript — both are corpus
-    problems that should stop the run before any GPU time is spent.
+    One row per generation, sorted deterministically. Raises when a sentence has no
+    transcript — that is a corpus problem that would silently change every clone
+    built from it, and it should stop the run before any GPU time is spent.
+
+    **Short-reference fallback.** ``min_ref_seconds`` is a preference, not a rule.
+    CREMA-D clips run 1.27–5.00 s with a median of 2.50 s, so on the real corpus 181
+    of 546 (actor, emotion) cells contain no clip that reaches 3 s at all. Aborting
+    there — the original behaviour — made the planner unusable on the corpus it was
+    written for. Dropping those cells instead would remove an emotion for particular
+    actors, which biases the corpus along exactly the axis the study analyses. So a
+    cell without a long-enough clip falls back to its **longest** clip, recorded in
+    the returned report so the reference quality is visible rather than assumed.
+
+    ``min_ref_floor`` is the hard limit: a cell whose longest clip is still shorter
+    than this is reported as unusable and skipped (or made fatal by
+    ``strict_refs``). ``strict_refs`` also turns the fallback itself into an error,
+    for anyone who wants the old all-or-nothing behaviour.
+
+    Returns ``(rows, report)`` where report counts cells, lists the fallback cells
+    with the reference length each used, the shortest reference the plan relies on,
+    and any cells that produced no target or no usable reference.
     """
     cells: dict[tuple[str, str], list[dict]] = {}
     for clip in clips:
@@ -131,17 +154,45 @@ def plan_generation(clips: list[dict], transcripts: dict[str, str], *,
 
     missing_sentences: set[str] = set()
     rows: list[dict] = []
+    report: dict = {"cells": len(cells), "fallback_cells": [], "skipped_cells": [],
+                    "cells_without_targets": [], "min_ref_used": None}
+
+    def ref_key(pair: tuple[dict, float]):
+        """Longest first, unreadable header last, then name — deterministic."""
+        clip, seconds = pair
+        ok = seconds == seconds
+        return (not ok, -(seconds if ok else 0.0), clip["path"].name)
+
     for (actor, emotion), cell in sorted(cells.items()):
         cell = sorted(cell, key=lambda c: c["path"].name)
         usable = [(c, wav_seconds(c["path"])) for c in cell]
-        refs = [c for c, seconds in usable
-                if seconds == seconds and seconds >= min_ref_seconds][:refs_per_cell]
-        if not refs:
-            raise SystemExit(
-                f"cell {actor}/{emotion}: no clip reaches {min_ref_seconds:g} s, so "
-                "there is nothing to clone from")
+        long_enough = [c for c, seconds in usable
+                       if seconds == seconds and seconds >= min_ref_seconds]
+        if long_enough:
+            refs = long_enough[:refs_per_cell]
+        else:
+            if strict_refs:
+                # The pre-fallback behaviour, kept for callers who would rather
+                # stop than synthesise from a short reference.
+                raise SystemExit(
+                    f"cell {actor}/{emotion}: no clip reaches {min_ref_seconds:g} s, "
+                    "so there is nothing to clone from")
+            best, best_seconds = sorted(usable, key=ref_key)[0]
+            if not (best_seconds == best_seconds and best_seconds >= min_ref_floor):
+                report["skipped_cells"].append(
+                    f"{actor}/{emotion} (longest {best_seconds:.2f} s)")
+                continue
+            refs = [best]
+            report["fallback_cells"].append((f"{actor}/{emotion}", round(best_seconds, 2)))
+        for ref in refs:
+            used = wav_seconds(ref["path"])
+            if used == used and (report["min_ref_used"] is None
+                                 or used < report["min_ref_used"]):
+                report["min_ref_used"] = round(used, 2)
         ref = refs[0]
         targets = [c for c in cell if c["trial_id"] not in {r["trial_id"] for r in refs}]
+        if not targets:
+            report["cells_without_targets"].append(f"{actor}/{emotion}")
         for clip in targets[:targets_per_cell]:
             text = transcripts.get(clip["sentence"])
             if text is None:
@@ -158,7 +209,7 @@ def plan_generation(clips: list[dict], transcripts: dict[str, str], *,
         raise SystemExit(
             "no transcript for sentence code(s) "
             f"{', '.join(sorted(missing_sentences))}; fill them in the transcripts CSV")
-    return rows
+    return rows, report
 
 
 def completed(path: Path) -> set[str]:
@@ -227,19 +278,42 @@ def main() -> None:
                    help="write the full plan to this CSV (default: <out>/<system>/plan.csv)")
     p.add_argument("--refs-per-cell", type=int, default=2)
     p.add_argument("--targets-per-cell", type=int, default=10)
-    p.add_argument("--min-ref-seconds", type=float, default=3.0)
+    p.add_argument("--min-ref-seconds", type=float, default=3.0,
+                   help="preferred reference length; a cell without one falls back "
+                        "to its longest clip (see --min-ref-floor)")
+    p.add_argument("--min-ref-floor", type=float, default=2.0,
+                   help="hard floor: a cell whose longest clip is shorter is skipped")
+    p.add_argument("--strict-refs", action="store_true",
+                   help="fail instead of falling back or skipping when a cell has no "
+                        "clip at --min-ref-seconds")
     p.add_argument("--cmd", default=None,
                    help="TTS command template with {ref}, {text} and {out} placeholders")
     p.add_argument("--dry-run", action="store_true",
                    help="write the plan, print the cost estimate, generate nothing")
     args = ap.parse_args()
 
+    # Name the missing input and the command that produces it: the two paths a
+    # first run is most likely to get wrong, and a traceback does not say either.
+    inputs = (
+        (args.manifest, "manifest",
+         "build it first: build_manifests.py crema --crema-root <AudioWAV> --out <csv>"),
+        (args.transcripts, "transcripts CSV",
+         "expected columns 'sentence,text'; the twelve CREMA-D prompts are in "
+         "data_manifests/crema_sentences.csv"),
+    )
+    for path, what, hint in inputs:
+        if not path.exists():
+            raise SystemExit(f"{what} not found: {path}\n  -> {hint}")
+
     clips = read_crema_targets(args.manifest)
     transcripts = load_transcripts(args.transcripts)
-    rows = plan_generation(clips, transcripts, system=args.system, out_root=args.out,
-                           refs_per_cell=args.refs_per_cell,
-                           targets_per_cell=args.targets_per_cell,
-                           min_ref_seconds=args.min_ref_seconds)
+    rows, report = plan_generation(clips, transcripts, system=args.system,
+                                   out_root=args.out,
+                                   refs_per_cell=args.refs_per_cell,
+                                   targets_per_cell=args.targets_per_cell,
+                                   min_ref_seconds=args.min_ref_seconds,
+                                   min_ref_floor=args.min_ref_floor,
+                                   strict_refs=args.strict_refs)
 
     plan_csv = args.reflist or (args.out / args.system / "plan.csv")
     plan_csv.parent.mkdir(parents=True, exist_ok=True)
@@ -249,9 +323,26 @@ def main() -> None:
         writer.writerows(rows)
 
     cells = {(r["actor"], r["emotion"]) for r in rows}
-    print(f"plan: {len(rows)} generations over {len(cells)} (actor, emotion) cells")
+    print(f"plan: {len(rows)} generations over {len(cells)} of {report['cells']} "
+          "(actor, emotion) cells")
+    if report["fallback_cells"]:
+        shortest = min(seconds for _cell, seconds in report["fallback_cells"])
+        print(f"  {len(report['fallback_cells'])} cell(s) had no clip >= "
+              f"{args.min_ref_seconds:g} s and used their longest clip instead "
+              f"(shortest such reference {shortest:.2f} s)")
+    if report["min_ref_used"] is not None:
+        print(f"  shortest reference the plan relies on: {report['min_ref_used']:.2f} s")
+    if report["skipped_cells"]:
+        print(f"  WARNING: skipped {len(report['skipped_cells'])} unusable cell(s) "
+              f"(longest clip below {args.min_ref_floor:g} s): "
+              f"{', '.join(report['skipped_cells'])}")
+    if report["cells_without_targets"]:
+        print(f"  WARNING: {len(report['cells_without_targets'])} cell(s) produced no "
+              f"target once the reference was excluded: "
+              f"{', '.join(report['cells_without_targets'])}")
     print(f"wrote {plan_csv}")
-    print(f"rough GPU cost at ~2.5 s per item: {len(rows) * 2.5 / 3600:.1f} h")
+    print(f"GPU estimate at ~2.5 s per item (vendor docs, not measured here): "
+          f"{len(rows) * 2.5 / 3600:.1f} h")
 
     if args.dry_run:
         return

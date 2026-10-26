@@ -79,10 +79,18 @@ statistics: 91 actors (15 evaluation speakers) instead of 10 (4).
 
 The ESD-derived work becomes the pilot: it generated the protocol, the code, the
 five-arm ladder, the ablations and the hypotheses. The clones are regenerated from
-CREMA-D with the same three systems, at ~16,400 generations rather than 36,000,
-because the speaker count — not the file count — is what carries the evidence.
-Full design, compliance position, costs and risks:
-[CORPUS_STRATEGY.md](CORPUS_STRATEGY.md).
+CREMA-D with the same three systems — the plan on the real corpus is **5,197 per
+generator, 15,591 in total**, rather than 36,000, because the speaker count — not the
+file count — is what carries the evidence.
+
+**Status 2026-10-26.** The corpus is no longer hypothetical: 7,442 CREMA-D wavs
+(5.26 h) are on disk via `scripts/fetch_crema.sh`, the bona fide manifest is built
+(10,205 rows, 91 actors split 61/15/15), and the clone plan is costed at 10.8
+GPU-hours for all three systems. No clone has been synthesised and no CREMA-D score
+exists, so nothing in this paper's numbers changes yet. Remaining for the journal
+track: run the synthesis, re-run producers → CM → fusion → ablations → folds →
+figures, then reproduce a published baseline under the matched protocol. Full
+design, compliance position, costs and risks: [CORPUS_STRATEGY.md](CORPUS_STRATEGY.md).
 
 Consequence for this plan: tasks 1–4 remain exactly as they are for the workshop
 paper. Everything in `docs/CORPUS_STRATEGY.md` §8 is journal work that starts after

@@ -63,6 +63,16 @@ All three were produced by the builders in `scripts/` and audited with `easv aud
 | `m_emospoof.csv` | 36,000 | `build_manifests.py emospoof` | clones from StyleTTS2, F5-TTS and CosyVoice; emotion from the generator's folder tree; `attack` = generator |
 | `merged_manifest.csv` | **53,900** | `merge_manifests.py` | the two above with the generator split demoted to the ESD speaker split (4/2/4), so every split has all three generators |
 | `m_asvspoof_la.csv` | 25,580 | `build_manifests.py asvspoof` | ASVspoof 2019 LA train only (2,580 bona fide, 22,800 spoof, 200 derived nontargets) |
+| `m_crema.csv` | 10,205 | `build_manifests.py crema` | journal corpus: 91 CREMA-D actors (61/15/15, speaker-disjoint), 6,565 targets + 3,640 same-partition nontargets; 877 clips dropped by the 2 s filter. Built 2026-10-26 from the real audio |
+
+
+The CREMA-D merge path was exercised on 2026-10-26 without GPU time: the three
+per-system *plans* were fed to `build_manifests.py crema-clones`, merged with
+`merge_manifests.py --extra`, and audited. It produced a 25,796-trial corpus (test:
+1,109 target + 600 nontarget + 2,625 spoof) with 0 errors and only the expected
+`generator_overlap` warnings. Those outputs were scratch — the clone rows described
+files that did not exist — and were deleted; the only CREMA-D file kept is
+`m_crema.csv`.
 
 `easv audit` on the merged manifest returns **0 errors and 4 warnings**: speaker
 overlap for the derived nontarget rows, and generator overlap because all three
@@ -81,6 +91,15 @@ these files:
   used by fusion come from the SER producer and live in the score file; the
   manifest's `emotion` column is used for splits, breakdowns and audit only.
 
+## CREMA-D sentence prompts
+
+`data_manifests/crema_sentences.csv` maps the twelve prompt codes to their text for
+`scripts/generate_clones.py`. It is transcribed from the CREMA-D README's filename
+convention (2026-10-26), not from memory: the release's acronyms are not the obvious
+ones (`ITH` = "I think I have a doctor's appointment", `IWL` = "I would like a new
+alarm clock", `MTI` = "Maybe tomorrow it will be cold"), and a wrong transcript is
+cloned into every target of that prompt.
+
 ## Open data issues
 
 * **ESD licence.** The audio came from a public Hugging Face mirror; a mirror is a
@@ -93,6 +112,9 @@ these files:
   pinned. A rerun months later may not get identical bytes.
 * **ASVspoof 2019 evaluation partition and SASV 2022 protocols** were never
   fetched, so no published-baseline reproduction exists.
+* **CREMA-D clones do not exist yet.** The journal corpus has its bona fide audio and
+  its plan; the 15,591 clones are planned, not generated, so no CREMA-D scores or
+  results exist.
 
 ## Example
 

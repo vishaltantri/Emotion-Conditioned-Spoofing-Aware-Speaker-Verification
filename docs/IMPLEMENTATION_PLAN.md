@@ -7,7 +7,7 @@ implemented, what was executed, and what is still missing. Numbers are in
 [PROGRESS_LOG.md](PROGRESS_LOG.md); the stage-by-stage work plan is
 [REMAINING_WORK_PLAN.md](REMAINING_WORK_PLAN.md).
 
-Last verified 2026-10-25: 97 tests passing, four countermeasure regimes, one
+Last verified 2026-10-26: 99 tests passing, four countermeasure regimes, one
 SER-confidence ablation and two held-out-emotion folds evaluated on 53,900 real
 trials.
 
@@ -128,7 +128,8 @@ Done: target venue class chosen (ASVspoof/ICASSP/Interspeech workshop), citation
 DOI audit finished against publisher, ISCA, ACL Anthology, NeurIPS and Crossref
 records, figures placed, code licensed (MIT), CI running the corpus-free suite, and
 the headline regime encoded as one command. Open: the CREMA-D re-run that replaces
-the pilot numbers, and the ESD licence reply for any journal submission. See
+the pilot numbers (its audio and manifest now exist; the clones do not), and the ESD
+licence reply for any journal submission. See
 [paper/README.md](../paper/README.md) and
 [PUBLICATION_ACTION_PLAN.md](PUBLICATION_ACTION_PLAN.md).
 
@@ -151,7 +152,8 @@ the pilot numbers, and the ESD licence reply for any journal submission. See
    extension: repeat a fold against the failing AASIST-LA countermeasure.
 3. ~~Repeat the fits across seeds~~ — done 2026-10-25 (four seeds, regimes A and D).
    A second speaker split is a property of the corpus and comes with the CREMA-D
-   re-anchoring, not with another run on ten speakers.
+   re-anchoring, not with another run on ten speakers — the CREMA-D audio was
+   fetched and its manifest built on 2026-10-26, which gives 15 evaluation speakers.
 4. Reproduce one published baseline to validate the metric code and close the novelty
    gate — still the one significant open item, declared as a limitation.
 5. Settle the ESD licence and pin corpus checksums before publishing anything beyond

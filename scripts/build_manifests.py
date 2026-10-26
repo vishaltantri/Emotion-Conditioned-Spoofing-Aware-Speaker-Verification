@@ -301,8 +301,11 @@ def build_manifest_crema(crema_root: Path, out_csv: Path,
         by_actor.setdefault(actor, {}).setdefault(emotion, []).append(
             (wav, _wav_seconds(wav)))
     if not by_actor:
-        raise FileNotFoundError(
-            f"no CREMA-D-style '<actor>_<sentence>_<EMO>_<LEVEL>.wav' files under {crema_root}")
+        raise SystemExit(
+            f"no CREMA-D-style '<actor>_<sentence>_<EMO>_<LEVEL>.wav' files under "
+            f"{crema_root}\n  -> point --crema-root at the AudioWAV/ directory of the "
+            "release (7442 files, actors 1001-1091); an empty or different-layout "
+            "directory is the usual cause")
 
     actors = sorted(by_actor)
     rng = random.Random(seed)

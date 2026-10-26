@@ -50,6 +50,29 @@ The two caveats, stated plainly because a reviewer will raise them:
 Verdict: CREMA-D clears the licence dependency. The residual risk is the cloning
 act, not the corpus paperwork, and it is manageable (§4).
 
+### How the audio is actually fetched
+
+The release stores `AudioWAV/` behind Git LFS. `git lfs pull` never completed on
+the build machine — it stalled before fetching a single object — and a full clone is
+7.55 GB because it also carries video. [scripts/fetch_crema.sh](../scripts/fetch_crema.sh)
+takes the same bytes from
+`media.githubusercontent.com/media/<owner>/<repo>/<ref>/<path>`, which needs no LFS
+client, no authentication and no video:
+
+```bash
+scripts/fetch_crema.sh /home/vct/data/crema_audio     # resumable, ~600 MB
+```
+
+It skips any file that already has a readable 16 kHz header, validates each download
+before moving it into place, and re-verifies the directory at the end. Run on
+2026-10-26: **7,442 wav files, 5.26 h of audio, 0 unusable, 592 MB**. The twelve
+prompt sentences are transcribed from the release README into
+[data_manifests/crema_sentences.csv](../data_manifests/crema_sentences.csv) — not
+guessed, because a wrong transcript is cloned into every target of that prompt. Note
+that the release's own acronyms are not the obvious ones: the doctor's-appointment
+prompt is `ITH`, the alarm-clock prompt is `IWL`, and `MTI` is "Maybe tomorrow it
+will be cold".
+
 ## 2. Why CREMA-D is also a scientific upgrade, not just a workaround
 
 | property | current corpus (ESD English 0011–0020) | CREMA-D |
@@ -119,8 +142,14 @@ Parsing: files are `AudioWAV/<actor>_<sentence>_<EMO>_<LEVEL>.wav`, e.g.
 `1001_TAI_HAP_XX.wav`, with `EMO ∈ {ANG, DIS, FEA, HAP, NEU, SAD}` and
 `LEVEL ∈ {LO, MD, HI, XX}`.
 
-* **Filter**: keep clips ≥ 2.0 s (CREMA-D bottoms out at 1.3 s, which is too short
-  for a stable ASV score or a CM window). References for cloning must be ≥ 3.0 s.
+* **Filter**: keep clips ≥ 2.0 s (CREMA-D bottoms out at 1.27 s, which is too short
+  for a stable ASV score or a CM window). References for cloning *prefer* ≥ 3.0 s,
+  but on the real corpus **181 of 546** (actor, emotion) cells contain no clip that
+  long — the median clip is 2.50 s — so such a cell falls back to its longest clip
+  (shortest fallback actually used: 2.17 s) and the planner reports how many cells
+  did so. Dropping the cells instead would remove particular emotions for particular
+  actors, which is the axis under study; `--strict-refs` restores the
+  all-or-nothing behaviour for anyone who prefers it.
 * **Emotion axis**: the SER front-end (wav2vec2-base-superb-er) is a 4-way
   IEMOCAP model (angry / happy / neutral / sad). Those four emotions carry the
   emotion-conditioned arms; `disgust` and `fear` are kept as labelled conditions
@@ -141,16 +170,25 @@ Parsing: files are `AudioWAV/<actor>_<sentence>_<EMO>_<LEVEL>.wav`, e.g.
 ## 6. Clone generation plan
 
 Per (actor, emotion) cell: hold out **2 clips as cloning references**, synthesise
-the remaining sentence texts. CREMA-D gives ~10–12 usable clips per cell.
+the remaining sentence texts. On the real corpus a cell yields 13–14 usable clips
+(min 2, median 13, max 14 after the 2 s filter), so the `--targets-per-cell` default
+of 10 is what caps the plan rather than the corpus.
 
-| quantity | estimate |
+Measured from the plan on 2026-10-26 (`--dry-run`, no synthesis run):
+
+| quantity | value |
 |---|---|
-| cells (91 actors × 6 emotions) | 546 |
-| clones per cell per system | ~10 |
-| clones per system | ~5,460 |
-| clones, three systems | **~16,400** |
-| plus bona fide retained | ~6,700 |
-| generations at ~2.5 s each | **~12 GPU-hours** (allow 18 with model loading and retries) |
+| cells (91 actors × 6 emotions) | 546, every one with ≥ 2 usable clips |
+| clips per cell after the 2 s filter | min 2, median 13, max 14 |
+| clones per system | **5,197** (10 targets per cell, the `--targets-per-cell` default) |
+| clones, three systems | **15,591** |
+| bona fide rows retained | 10,205 rows: 6,565 target + 3,640 nontarget |
+| estimates at ~2.5 s per generation | **10.8 GPU-hours** for all three systems |
+
+The per-system count is identical for StyleTTS2, F5-TTS and CosyVoice because the
+plan is deterministic and independent of the backend; only the synthesis differs.
+The GPU figure is the vendor-docs estimate the planner prints, **not a measurement** —
+no clone has been synthesised yet.
 
 Deliberate choice: we do **not** inflate the count by re-synthesising the same
 transcript with multiple reference clips. Duplicate content adds files, not
@@ -158,10 +196,11 @@ information, and the ESD corpus's 300-per-cell scale was never what made its
 results strong — the speaker count is. If more test trials are needed, the cheap
 lever is more emotion levels per cell, not repeated text.
 
-Expected test split at 61/15/15: 15 speakers × 6 emotions × ~11 bona fide ≈ 990
-target trials, plus 15 × 6 × 10 × 3 ≈ 2,700 spoof trials, plus generated
-cross-speaker nontargets — roughly 4,000 test trials over **15** resampling
-clusters, versus 21,560 trials over 4.
+Test split at 61/15/15, with the four SER emotions carrying spoof trials: 1,109
+bona fide targets + 600 nontargets + 2,625 clones = **4,334 test trials over 15
+resampling clusters**, against the pilot's 21,560 trials over 4. The bona fide side
+is larger than the ~990 first estimated because CREMA-D yields 13–14 usable clips
+per cell, not 11.
 
 Compute reality check (from the vendor docs, not benchmarks we ran): StyleTTS2 and
 CosyVoice-300M are plausible on the 6 GB RTX 3050 at batch 1; F5-TTS is borderline
@@ -177,18 +216,24 @@ loses nothing and the manifest builder can be re-run at any time.
 
 ### Running it
 
+Steps 1 and 2 have been run on the real corpus and are reflected in the table above;
+step 3 onwards has not.
+
 ```bash
 D=/home/vct/data/crema
+AUDIO=/home/vct/data/crema_audio        # from scripts/fetch_crema.sh
 # 1) bona fide manifest (actor-disjoint, ≥2 s clips, same-partition impostors)
 .venv/bin/python scripts/build_manifests.py crema \
-    --crema-root $D/AudioWAV --out results/e2e/m_crema.csv
+    --crema-root $AUDIO --out results/e2e/m_crema.csv
 # 2) the plan, with no GPU time spent
 .venv/bin/python scripts/generate_clones.py plan \
-    --manifest results/e2e/m_crema.csv --transcripts $D/crema_sentences.csv \
+    --manifest results/e2e/m_crema.csv \
+    --transcripts data_manifests/crema_sentences.csv \
     --system styletts2 --out $D/clones --dry-run
 # 3) generate (re-run the same command to resume after an interruption)
 .venv/bin/python scripts/generate_clones.py plan \
-    --manifest results/e2e/m_crema.csv --transcripts $D/crema_sentences.csv \
+    --manifest results/e2e/m_crema.csv \
+    --transcripts data_manifests/crema_sentences.csv \
     --system styletts2 --out $D/clones \
     --cmd "python -m styletts2.inference --ref {ref} --text {text} --out {out}"
 # 4) clones -> spoof rows, then one merged manifest
@@ -206,11 +251,12 @@ clip the duration filter removed). `merge_manifests.py` now derives the
 authoritative split from target rows rather than from a corpus name, which is what
 lets CREMA-D merge without special-casing.
 
-`crema_sentences.csv` is `sentence,text`, one row per sentence code used in the
-corpus filenames. It is not guessed here on purpose: a wrong transcript would be
-cloned into every target of that prompt and would quietly change how natural the
-clones sound. The planner names every missing code in its error message, so the
-file can be filled from the corpus release in one pass.
+`data_manifests/crema_sentences.csv` is `sentence,text`, one row per sentence code
+used in the corpus filenames, filled from the release README (2026-10-26). It was not
+guessed here on purpose: a wrong transcript is cloned into every target of that
+prompt and quietly changes how natural the clones sound. The planner names every
+missing code in its error message, and refuses to run when the file itself is
+missing rather than raising a bare `FileNotFoundError`.
 
 ## 7. What the journal still needs beyond the corpus
 
@@ -225,37 +271,47 @@ file can be filled from the corpus release in one pass.
 
 ## 8. Implementation order
 
-1. Fetch CREMA-D audio (`git lfs` sparse checkout of `AudioWAV/`; the full clone is
-   7.55 GB including video, which we do not need).
-2. `scripts/build_manifests.py crema` — **done** (2026-10-25): new builder reusing
-   the existing manifest schema, with the ≥2 s header-only duration filter, the
-   actor-disjoint split and same-partition impostors; covered by three tests in
-   `tests/test_manifest_builders.py`. It runs on a fixture today and will run on
-   the corpus the moment the audio is on disk.
-3. `scripts/generate_clones.py` — **done** (2026-10-25), pure Python, no TTS import.
-   It plans deterministically (first clips in sorted order per cell become the
-   cloning references, the rest become targets), refuses to run when a sentence has
-   no transcript, skips references as targets, and resumes from whatever is on
-   disk. Synthesis goes through a command template
+1. Fetch CREMA-D audio — **done** (2026-10-26) with
+   [scripts/fetch_crema.sh](../scripts/fetch_crema.sh): 7,442 wavs, 5.26 h, 592 MB,
+   no LFS client and no video. `git lfs pull` did not complete on this machine; see
+   §1 for what the script does instead.
+2. `scripts/build_manifests.py crema` — **done and run on the real audio**
+   (2026-10-26): 10,205 rows (6,565 target + 3,640 nontarget), 91 actors split
+   61/15/15 with no speaker in two splits, same-partition impostors, 877 clips dropped
+   by the 2 s filter. `easv audit` reports no split findings; its only errors are the
+   missing spoof rows, which is the correct answer before any clone exists.
+3. `scripts/generate_clones.py` — **done and planned on the real manifest**
+   (2026-10-26): 5,197 generations per system over all 546 cells, 10.8 GPU-hours in
+   total at the documented rate. It plans deterministically (first clips in sorted
+   order per cell become the cloning references, the rest become targets), refuses to
+   run when a sentence has no transcript, skips references as targets, and resumes
+   from whatever is on disk. Synthesis goes through a command template
    (`--cmd "… --ref {ref} --text {text} --out {out}"`) because the three systems
    disagree about flags and none of them should become a hard dependency of this
-   repository. `--dry-run` writes the plan and the GPU-hour estimate.
-4. `scripts/verify_clone_quality.py` — **done** (2026-10-25). The gate reads the
-   score files that already exist and checks three things before any fusion time is
-   spent: the spread in per-generator spoof acceptance (≥ 10 points — the pilot's was
-   53), SER accuracy on clones (≤ 50 %) with mean confidence (≥ 0.60), and the worst
-   per-generator CM-EER (≤ 5 %). Thresholds are CLI flags; the script exits non-zero
-   when a criterion fails, so a bad corpus blocks the pipeline instead of becoming a
-   table.
+   repository. `--dry-run` writes the plan and the GPU-hour estimate. The 3 s
+   reference rule had to become a preference with a fallback before the plan ran at
+   all — see §5.
+4. `scripts/verify_clone_quality.py` — **done** (2026-10-25), and exercised against
+   the real merged manifest on 2026-10-26. The gate reads the score files that already
+   exist and checks three things before any fusion time is spent: the spread in
+   per-generator spoof acceptance (≥ 10 points — the pilot's was 53), SER accuracy on
+   clones (≤ 50 %) with mean confidence (≥ 0.60), and the worst per-generator CM-EER
+   (≤ 5 %). Thresholds are CLI flags; the script exits non-zero when a criterion
+   fails, so a bad corpus blocks the pipeline instead of becoming a table. It cannot
+   report numbers until the clones exist, and now says which input is missing and what
+   produces it instead of raising `FileNotFoundError`.
 5. `scripts/build_manifests.py crema-clones` + `scripts/merge_manifests.py --extra`
-   — **done** (2026-10-25). The generation log becomes spoof rows whose split is
+   — **done** (2026-10-25), and run end to end on 2026-10-26: the three per-system
+   manifests merged into a 25,796-trial corpus (test: 1,109 target + 600 nontarget +
+   2,625 spoof) that `easv audit` accepts with 0 errors and only the expected
+   `generator_overlap` warnings. The generation log becomes spoof rows whose split is
    inherited from the source clip (never computed independently), duplicates are
    collapsed on output path, and generations with no source clip are counted and
-   skipped instead of given an invented split. The merge step now derives the
+   skipped instead of given an invented split. The merge step derives the
    authoritative split from **target rows** rather than from the corpus name, so
    CREMA-D needs no special case; the ASVspoof LA namespace keeps its exemption.
 6. Re-run producers → CM training → fusion → ablations → folds → figures. No core
-   code changes expected.
+   code changes expected. This is the only step that needs the generated audio.
 7. Update the protocol, novelty matrix and results documents with the new numbers;
    keep the ESD results as the pilot appendix.
 
@@ -266,5 +322,5 @@ file can be filled from the corpus release in one pass.
 | clones are too clean / too degraded for the effect to reproduce | step 4 gate exists precisely to catch this; tune duration and reference length before scaling |
 | F5-TTS does not fit 6 GB | run it on rented GPU time, or drop to a two-generator corpus and say so |
 | a reviewer objects to cloning identifiable actors | aggregate-only reporting, ethics paragraph, no audio release; the fallback is a smaller corpus with no released scores |
-| CREMA-D clips are short (1.3–5.0 s) | ≥2 s filter for trials, ≥3 s for references |
+| CREMA-D clips are short (1.27–5.0 s, median 2.50) | ≥ 2 s filter for trials; references prefer ≥ 3 s and fall back to the cell's longest clip (181 of 546 cells needed this, shortest reference 2.17 s) rather than dropping a whole emotion for one actor |
 | ODbL share-alike | never distribute a derived database; if scores are released, label them ODbL |
